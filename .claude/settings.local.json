@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"C:/Users/User/.claude/skills/write-fact-docs-sasd/SKILL.md\" \"C:/Users/User/.claude/rules/writing-sasd.md\" \"C:/Users/User/.claude/rules/fact-docs-versions.md\" 2>&1)",
+      "Read(//c/Users/User/.claude/skills/write-fact-docs-sasd/**)"
+    ]
+  }
+}
