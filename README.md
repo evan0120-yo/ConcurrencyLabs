@@ -24,7 +24,7 @@
 兩個維度交叉，就能定位到「某情境 × 某流量」的解法
 │
 ├─ 情境 → 用 package 切（75 個，攤平放在 com.concurrencylabs.<情境>）
-│         例：flashsale（秒殺）、gamewalletledger（錢包帳本）、feed（動態牆）
+│         例：s13_flashsale（秒殺）、s06_gamewalletledger（錢包帳本）、s55_feed（動態牆）
 │
 └─ 流量等級 → 用 branch 切（L1 / L2 / L3 / L4）
               同一個情境，在不同 branch 展示「流量長大後，架構怎麼演進」
@@ -51,14 +51,14 @@ L4  100,000 QPS+    尖峰洪水，要隔離資源、降級、近似值、預計
 
 ```text
 Step 1  打開 ROUTE.md，用「症狀」找情境
-        └─ 找到這行：「限量商品會被搶爆、怕超賣」→ flashsale / couponclaim / inventorydeduction
+        └─ 找到這行：「限量商品會被搶爆、怕超賣」→ s13_flashsale / s14_couponclaim / s15_inventorydeduction
 
 Step 2  進到那個 package，讀它的 README
-        └─ src/main/java/com/concurrencylabs/flashsale/README.md
+        └─ src/main/java/com/concurrencylabs/s13_flashsale/README.md
            看 user story 跟痛點，確認「對，這就是我的情境」
 
 Step 3  切到你要的流量等級 branch
-        └─ 你預期 5 萬 QPS？切到 L3 branch，看 flashsale 在那個量級的做法
+        └─ 你預期 5 萬 QPS？切到 L3 branch，看 s13_flashsale 在那個量級的做法
 
 Step 4  照著那份參考實作的結構，套回你自己的專案
 ```
