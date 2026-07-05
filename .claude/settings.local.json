@@ -12,7 +12,11 @@
       "Bash(sed --version)",
       "Bash(printf 's/\\\\\\\\b%s\\\\\\\\b/%s/g\\\\n' \"lottery\" \"s01_lottery\")",
       "Read(//c/Users/User/AppData/Local/Temp/claude/d--WorkSpace-ConcurrencyLabs/86cf5acd-1c0f-45f1-840a-2524d2af8098/scratchpad/**)",
-      "Bash(sed -f /c/Users/User/AppData/Local/Temp/claude/d--WorkSpace-ConcurrencyLabs/86cf5acd-1c0f-45f1-840a-2524d2af8098/scratchpad/one.sed d:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/s01_lottery/package-info.java)"
+      "Bash(sed -f /c/Users/User/AppData/Local/Temp/claude/d--WorkSpace-ConcurrencyLabs/86cf5acd-1c0f-45f1-840a-2524d2af8098/scratchpad/one.sed d:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/s01_lottery/package-info.java)",
+      "Skill(write-fact-docs-sasd)",
+      "Skill(write-fact-docs-sasd:*)",
+      "Bash(mvn -q -DskipTests compile)",
+      "Read(//c/Users/User/.claude/**)"
     ]
   }
 }
