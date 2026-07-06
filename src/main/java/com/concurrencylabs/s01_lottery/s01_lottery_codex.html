@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>S01 Lottery Architecture Codex</title>
+  <style>
+    :root {
+      --bg: #f6f8f7;
+      --panel: #ffffff;
+      --ink: #18212b;
+      --muted: #64727d;
+      --line: #cbd6d2;
+      --line-strong: #8aa09a;
+      --l1: #277a67;
+      --l1-soft: #e0f2ed;
+      --l2: #bd4b55;
+      --l2-soft: #fde8ea;
+      --l3: #8b6a1f;
+      --l3-soft: #f4ecd3;
+      --l4: #386fa8;
+      --l4-soft: #e5eef8;
+      --warn: #c0643d;
+      --shadow: 0 12px 32px rgba(24, 33, 43, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .page-header {
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .header-inner,
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    .header-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      padding: 34px 0 26px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--l1);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      letter-spacing: 0;
+      line-height: 1.2;
+    }
+
+    h1 {
+      font-size: clamp(30px, 5vw, 56px);
+      max-width: 780px;
+    }
+
+    h2 {
+      font-size: 28px;
+    }
+
+    h3 {
+      font-size: 18px;
+    }
+
+    .lead {
+      max-width: 820px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .top-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .top-nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .top-nav a:hover {
+      border-color: var(--line-strong);
+      background: #f7faf9;
+    }
+
+    main {
+      padding: 28px 0 56px;
+    }
+
+    .block {
+      margin-top: 22px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 22px;
+    }
+
+    .section-head p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      max-width: 820px;
+    }
+
+    .tagline {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .concept-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+    }
+
+    .panel,
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .panel h3 {
+      margin-bottom: 12px;
+    }
+
+    .story-flow {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .story-flow li {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: #f8fbfa;
+      border: 1px solid #e4ece9;
+    }
+
+    .flow-step {
+      color: var(--l1);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .story-flow strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .story-flow span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .qps-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .qps-card {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+      min-height: 82px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .qps-card strong {
+      display: block;
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .qps-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .qps-card.l1 {
+      border-color: color-mix(in srgb, var(--l1) 40%, var(--line));
+      background: var(--l1-soft);
+    }
+
+    .qps-card.l2 {
+      border-color: color-mix(in srgb, var(--l2) 40%, var(--line));
+      background: var(--l2-soft);
+    }
+
+    .qps-card.l3 {
+      border-color: color-mix(in srgb, var(--l3) 40%, var(--line));
+      background: var(--l3-soft);
+    }
+
+    .qps-card.l4 {
+      border-color: color-mix(in srgb, var(--l4) 40%, var(--line));
+      background: var(--l4-soft);
+    }
+
+    .watch-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .watch-item {
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .watch-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .watch-item span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .diagram-shell {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfdfc;
+    }
+
+    .diagram {
+      display: block;
+      width: 100%;
+      min-width: 1080px;
+      height: auto;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .legend-item {
+      display: inline-grid;
+      grid-template-columns: 12px auto;
+      gap: 8px;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot.l1 {
+      background: var(--l1);
+    }
+
+    .dot.l2 {
+      background: var(--l2);
+    }
+
+    .dot.l3 {
+      background: var(--l3);
+    }
+
+    .dot.l4 {
+      background: var(--l4);
+    }
+
+    .diagram .lane {
+      fill: #ffffff;
+      stroke: #dbe4e1;
+      stroke-width: 1.2;
+    }
+
+    .diagram .lane-title {
+      fill: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .diagram .node {
+      stroke-width: 2;
+      rx: 8;
+      ry: 8;
+      transition: filter 160ms ease, stroke-width 160ms ease;
+    }
+
+    .diagram .l1-node {
+      fill: var(--l1-soft);
+      stroke: var(--l1);
+    }
+
+    .diagram .l2-node {
+      fill: var(--l2-soft);
+      stroke: var(--l2);
+    }
+
+    .diagram .l3-node {
+      fill: var(--l3-soft);
+      stroke: var(--l3);
+    }
+
+    .diagram .l4-node {
+      fill: var(--l4-soft);
+      stroke: var(--l4);
+    }
+
+    .diagram .group-frame {
+      fill: rgba(255, 255, 255, 0.22);
+      stroke: #8aa09a;
+      stroke-width: 2;
+      stroke-dasharray: 8 6;
+      rx: 12;
+      ry: 12;
+    }
+
+    .diagram .group-hit {
+      fill: transparent;
+      stroke: transparent;
+    }
+
+    .diagram .node-title {
+      fill: var(--ink);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .diagram .node-copy {
+      fill: #485761;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .diagram .level-label {
+      font-size: 12px;
+      font-weight: 900;
+      fill: #fff;
+    }
+
+    .diagram .label-pill-l1 {
+      fill: var(--l1);
+    }
+
+    .diagram .label-pill-l2 {
+      fill: var(--l2);
+    }
+
+    .diagram .label-pill-l3 {
+      fill: var(--l3);
+    }
+
+    .diagram .label-pill-l4 {
+      fill: var(--l4);
+    }
+
+    .diagram .arrow {
+      fill: none;
+      stroke: #667781;
+      stroke-width: 2;
+      marker-end: url(#arrow);
+    }
+
+    .diagram .thin-arrow {
+      fill: none;
+      stroke: #94a39d;
+      stroke-width: 1.6;
+      marker-end: url(#arrowLight);
+    }
+
+    .diagram a {
+      cursor: pointer;
+      outline: none;
+    }
+
+    .diagram a:hover .node,
+    .diagram a:focus .node {
+      filter: drop-shadow(0 8px 12px rgba(24, 33, 43, 0.14));
+      stroke-width: 3;
+    }
+
+    .diagram a:hover .group-frame,
+    .diagram a:focus .group-frame {
+      stroke: var(--warn);
+      stroke-width: 3;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .detail-card {
+      padding: 18px;
+      scroll-margin-top: 18px;
+    }
+
+    .detail-card:target {
+      border-color: var(--warn);
+      box-shadow: 0 0 0 3px rgba(192, 100, 61, 0.16);
+    }
+
+    .detail-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .level-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 4px 9px;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .level-chip.l1 {
+      background: var(--l1);
+    }
+
+    .level-chip.l2 {
+      background: var(--l2);
+    }
+
+    .level-chip.l3 {
+      background: var(--l3);
+    }
+
+    .level-chip.l4 {
+      background: var(--l4);
+    }
+
+    .level-chip.cross {
+      background: #51616b;
+    }
+
+    .detail-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .rx-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .rx-list li {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px;
+      border-radius: var(--radius);
+      background: #f8fbfa;
+      border: 1px solid #e4ece9;
+      font-size: 14px;
+    }
+
+    .rx-list b {
+      color: var(--ink);
+    }
+
+    .rx-list span {
+      color: var(--muted);
+    }
+
+    .callout {
+      margin-top: 14px;
+      padding: 14px;
+      border-left: 4px solid var(--warn);
+      background: #fff7f2;
+      color: #56392c;
+      border-radius: var(--radius);
+    }
+
+    @media (max-width: 900px) {
+      .header-inner,
+      .section-head {
+        grid-template-columns: 1fr;
+      }
+
+      .top-nav {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .header-inner,
+      main {
+        width: min(100vw - 20px, 1180px);
+      }
+
+      .block {
+        padding: 18px;
+      }
+
+      .watch-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+      .story-flow li,
+      .qps-card,
+      .rx-list li {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">ConcurrencyLabs / S01 Lottery</p>
+        <h1>抽獎系統 L1-L4 架構演進圖</h1>
+        <p class="lead">
+          這份 HTML 是教學用視覺稿：先把 L1 的抽獎流程拼成底圖，再用不同顏色標出 L2、L3、L4 會改造的位置。
+        </p>
+      </div>
+      <nav class="top-nav" aria-label="page sections">
+        <a href="#block1">核心概念</a>
+        <a href="#block2">架構大圖</a>
+        <a href="#block3">Detail</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="block" id="block1">
+      <div class="section-head">
+        <div>
+          <h2>Block 1 / 核心概念</h2>
+          <p>
+            S01 的主線不是「抽中什麼獎」而已，而是高併發下仍要守住：不重複扣點、不超賣獎品、失敗能補償、重試能拿到同一個結果。
+          </p>
+        </div>
+        <span class="tagline">user story + QPS + observation</span>
+      </div>
+
+      <div class="concept-grid">
+        <article class="panel">
+          <h3>User Story</h3>
+          <ul class="story-flow">
+            <li>
+              <span class="flow-step">request</span>
+              <div>
+                <strong>玩家用 200 點參加抽獎</strong>
+                <span>送出 activityId、userId、idempotencyKey，呼叫 POST /api/lottery/{activityId}/draw。</span>
+              </div>
+            </li>
+            <li>
+              <span class="flow-step">guard</span>
+              <div>
+                <strong>系統先守活動狀態與重試語意</strong>
+                <span>活動必須 RUNNING；同一個 idempotencyKey 不能產生兩次扣點或兩筆有效抽獎結果。</span>
+              </div>
+            </li>
+            <li>
+              <span class="flow-step">draw</span>
+              <div>
+                <strong>扣點後執行權重抽獎與庫存扣減</strong>
+                <span>中獎時要用 Redis Lua 原子扣庫存；扣不到庫存就回 LOSE。</span>
+              </div>
+            </li>
+            <li>
+              <span class="flow-step">record</span>
+              <div>
+                <strong>記錄 WIN / LOSE，失敗時補償扣點</strong>
+                <span>抽獎與寫紀錄之間若出現系統失敗，需要 refund points 並釋放 claim。</span>
+              </div>
+            </li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h3>這些 QPS 下要看什麼</h3>
+          <div class="qps-grid">
+            <div class="qps-card l1">
+              <strong>L1 / 3k</strong>
+              <p>先看正確性：idempotency、Redis Lua、DB unique key、補償是否能兜住基本併發。</p>
+            </div>
+            <div class="qps-card l2">
+              <strong>L2 / 10k</strong>
+              <p>看橫向擴展：App replicas、Redis cluster、DB pool、熱點獎品 key 是否集中。</p>
+            </div>
+            <div class="qps-card l3">
+              <strong>L3 / 30k</strong>
+              <p>看同步路徑長度：DB insert、account service、record replay 是否拖長 P99。</p>
+            </div>
+            <div class="qps-card l4">
+              <strong>L4 / burst</strong>
+              <p>看入口治理：排隊、令牌、預扣名額、降級，以及能不能快速回覆 sold out。</p>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="watch-grid" aria-label="observation points">
+        <div class="watch-item">
+          <strong>Correctness</strong>
+          <span>oversell、duplicate charge、duplicate record、refund mismatch。</span>
+        </div>
+        <div class="watch-item">
+          <strong>Latency</strong>
+          <span>P95/P99、Redis eval latency、account latency、DB insert latency。</span>
+        </div>
+        <div class="watch-item">
+          <strong>Capacity</strong>
+          <span>Redis ops/request、DB connection pool、hot key skew、retry ratio。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="block2">
+      <div class="section-head">
+        <div>
+          <h2>Block 2 / 架構大圖</h2>
+          <p>
+            這張圖把 L1 現有流程放在同一張底圖中，L2-L4 用顏色疊上要升級的元件。每個外框代表一個壓力區，框內節點代表不同 level 的處方。
+          </p>
+        </div>
+        <span class="tagline">clickable architecture map</span>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><span class="dot l1"></span>L1 現有單點正確性</span>
+        <span class="legend-item"><span class="dot l2"></span>L2 橫向擴展</span>
+        <span class="legend-item"><span class="dot l3"></span>L3 非同步拆壓</span>
+        <span class="legend-item"><span class="dot l4"></span>L4 入口治理</span>
+      </div>
+
+      <div class="diagram-shell">
+        <svg class="diagram" viewBox="0 0 1180 720" role="img" aria-labelledby="diagram-title diagram-desc">
+          <title id="diagram-title">S01 Lottery L1 to L4 architecture map</title>
+          <desc id="diagram-desc">A clickable architecture diagram showing request path, Redis state, account service, database record, and L2 to L4 evolution points.</desc>
+
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L8,3 z" fill="#667781"></path>
+            </marker>
+            <marker id="arrowLight" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L8,3 z" fill="#94a39d"></path>
+            </marker>
+          </defs>
+
+          <rect x="26" y="34" width="1128" height="170" class="lane"></rect>
+          <text x="46" y="64" class="lane-title">流量入口 / Request path</text>
+
+          <rect x="26" y="232" width="1128" height="252" class="lane"></rect>
+          <text x="46" y="262" class="lane-title">狀態與一致性 / Stateful pressure</text>
+
+          <rect x="26" y="512" width="1128" height="168" class="lane"></rect>
+          <text x="46" y="542" class="lane-title">演進補強 / Advanced prescription</text>
+
+          <a href="#detail-entry">
+            <title>HTTP 入口與 App replicas</title>
+            <rect x="72" y="92" width="146" height="72" class="node l1-node"></rect>
+            <rect x="84" y="104" width="32" height="18" rx="6" class="label-pill-l1"></rect>
+            <text x="92" y="118" class="level-label">L1</text>
+            <text x="96" y="138" class="node-title">Client</text>
+            <text x="96" y="156" class="node-copy">draw request</text>
+          </a>
+
+          <path d="M218 128 H286" class="arrow"></path>
+
+          <a href="#detail-entry">
+            <title>Controller and usecase are the synchronous core path</title>
+            <rect x="286" y="78" width="188" height="100" class="node l1-node"></rect>
+            <rect x="300" y="92" width="32" height="18" rx="6" class="label-pill-l1"></rect>
+            <text x="308" y="106" class="level-label">L1</text>
+            <text x="306" y="128" class="node-title">Spring API</text>
+            <text x="306" y="148" class="node-copy">Controller -> Usecase</text>
+            <text x="306" y="166" class="node-copy">同步完成 draw</text>
+          </a>
+
+          <path d="M474 128 H542" class="arrow"></path>
+
+          <a href="#detail-entry">
+            <title>L2 adds app replicas behind a load balancer</title>
+            <rect x="542" y="78" width="194" height="100" class="node l2-node"></rect>
+            <rect x="556" y="92" width="32" height="18" rx="6" class="label-pill-l2"></rect>
+            <text x="564" y="106" class="level-label">L2</text>
+            <text x="562" y="128" class="node-title">App replicas</text>
+            <text x="562" y="148" class="node-copy">stateless workers</text>
+            <text x="562" y="166" class="node-copy">claim must be external</text>
+          </a>
+
+          <path d="M736 128 H824" class="thin-arrow"></path>
+
+          <a href="#detail-l4-traffic">
+            <title>L4 controls burst traffic before it reaches the draw path</title>
+            <rect x="824" y="78" width="246" height="100" class="node l4-node"></rect>
+            <rect x="838" y="92" width="32" height="18" rx="6" class="label-pill-l4"></rect>
+            <text x="846" y="106" class="level-label">L4</text>
+            <text x="844" y="128" class="node-title">Traffic gate</text>
+            <text x="844" y="148" class="node-copy">token bucket / queue</text>
+            <text x="844" y="166" class="node-copy">fast sold-out response</text>
+          </a>
+
+          <path d="M380 178 C380 218 260 222 260 286" class="arrow"></path>
+          <path d="M380 178 C430 218 520 222 520 286" class="arrow"></path>
+          <path d="M380 178 C540 226 820 220 820 286" class="arrow"></path>
+
+          <a href="#detail-redis-selection">
+            <title>Redis subsystem: idempotency and stock are different QPS questions</title>
+            <rect x="72" y="284" width="468" height="166" class="group-frame"></rect>
+            <rect x="72" y="284" width="468" height="166" class="group-hit"></rect>
+            <text x="94" y="314" class="lane-title">Redis 外框 / idem + stock QPS</text>
+          </a>
+
+          <a href="#detail-redis-l1">
+            <title>L1 single Redis handles SET NX and Lua decrement</title>
+            <rect x="104" y="336" width="164" height="78" class="node l1-node"></rect>
+            <rect x="118" y="350" width="32" height="18" rx="6" class="label-pill-l1"></rect>
+            <text x="126" y="364" class="level-label">L1</text>
+            <text x="124" y="386" class="node-title">Single Redis</text>
+            <text x="124" y="404" class="node-copy">SET NX + Lua DECR</text>
+          </a>
+
+          <path d="M268 375 H338" class="thin-arrow"></path>
+
+          <a href="#detail-redis-l2">
+            <title>L2 upgrades Redis to cluster or sentinel shape</title>
+            <rect x="338" y="336" width="168" height="78" class="node l2-node"></rect>
+            <rect x="352" y="350" width="32" height="18" rx="6" class="label-pill-l2"></rect>
+            <text x="360" y="364" class="level-label">L2</text>
+            <text x="358" y="386" class="node-title">Redis Cluster</text>
+            <text x="358" y="404" class="node-copy">shard / failover</text>
+          </a>
+
+          <a href="#detail-account">
+            <title>Account service can become the remote dependency that controls P99</title>
+            <rect x="606" y="312" width="190" height="116" class="node l1-node"></rect>
+            <rect x="620" y="326" width="32" height="18" rx="6" class="label-pill-l1"></rect>
+            <text x="628" y="340" class="level-label">L1</text>
+            <text x="626" y="364" class="node-title">common.account</text>
+            <text x="626" y="384" class="node-copy">deduct 200 points</text>
+            <text x="626" y="402" class="node-copy">refund on failure</text>
+          </a>
+
+          <path d="M520 286 C574 294 610 310 642 334" class="arrow"></path>
+
+          <a href="#detail-db-record">
+            <title>PostgreSQL stores activity, prize and draw records</title>
+            <rect x="860" y="292" width="230" height="146" class="group-frame"></rect>
+            <rect x="860" y="292" width="230" height="146" class="group-hit"></rect>
+            <text x="880" y="322" class="lane-title">PostgreSQL 外框</text>
+          </a>
+
+          <a href="#detail-db-record">
+            <title>L1 records WIN or LOSE synchronously</title>
+            <rect x="892" y="344" width="166" height="70" class="node l1-node"></rect>
+            <rect x="906" y="358" width="32" height="18" rx="6" class="label-pill-l1"></rect>
+            <text x="914" y="372" class="level-label">L1</text>
+            <text x="912" y="394" class="node-title">draw_record</text>
+            <text x="912" y="410" class="node-copy">unique idem key</text>
+          </a>
+
+          <path d="M520 286 C674 250 854 286 930 344" class="arrow"></path>
+          <path d="M796 370 H860" class="thin-arrow"></path>
+
+          <a href="#detail-l3-async">
+            <title>L3 uses outbox or MQ for non-critical writes and projections</title>
+            <rect x="112" y="570" width="246" height="72" class="node l3-node"></rect>
+            <rect x="126" y="584" width="32" height="18" rx="6" class="label-pill-l3"></rect>
+            <text x="134" y="598" class="level-label">L3</text>
+            <text x="132" y="620" class="node-title">Outbox / MQ</text>
+            <text x="132" y="638" class="node-copy">record projection, notify, analytics</text>
+          </a>
+
+          <path d="M975 414 C930 486 458 510 318 570" class="thin-arrow"></path>
+
+          <a href="#detail-l3-async">
+            <title>L3 creates read and replay paths that do not lengthen the draw transaction</title>
+            <rect x="430" y="570" width="246" height="72" class="node l3-node"></rect>
+            <rect x="444" y="584" width="32" height="18" rx="6" class="label-pill-l3"></rect>
+            <text x="452" y="598" class="level-label">L3</text>
+            <text x="450" y="620" class="node-title">Result projection</text>
+            <text x="450" y="638" class="node-copy">replay by idempotencyKey</text>
+          </a>
+
+          <path d="M358 606 H430" class="thin-arrow"></path>
+
+          <a href="#detail-l4-traffic">
+            <title>L4 adds admission control and pre-allocated quota to protect stateful systems</title>
+            <rect x="748" y="570" width="302" height="72" class="node l4-node"></rect>
+            <rect x="762" y="584" width="32" height="18" rx="6" class="label-pill-l4"></rect>
+            <text x="770" y="598" class="level-label">L4</text>
+            <text x="768" y="620" class="node-title">Quota / degradation</text>
+            <text x="768" y="638" class="node-copy">protect Redis, DB, account under burst</text>
+          </a>
+
+          <path d="M899 178 C980 250 1030 492 965 570" class="thin-arrow"></path>
+        </svg>
+      </div>
+    </section>
+
+    <section class="block" id="block3">
+      <div class="section-head">
+        <div>
+          <h2>Block 3 / Detail</h2>
+          <p>
+            Detail 區把大圖上的節點拆成「症狀、處方、要觀察」三件事。之後 L2-L4 真正開始 coding，可以把對應 package 的實作連回這些 detail。
+          </p>
+        </div>
+        <span class="tagline">symptom / prescription / watch</span>
+      </div>
+
+      <div class="details-grid">
+        <article class="detail-card" id="detail-entry">
+          <div class="detail-top">
+            <h3>HTTP 入口與 App replicas</h3>
+            <span class="level-chip l2">L1 -> L2</span>
+          </div>
+          <p>
+            L1 目前重點是單一同步 usecase 正確完成抽獎。到 L2 時，API 層可以水平擴展，但 claim、庫存、紀錄都不能依賴單機記憶體。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>QPS 上升後，單一 Spring instance CPU、thread pool、DB pool 都會先被打滿。</span></li>
+            <li><b>處方</b><span>App stateless 化，前面放 LB；所有跨 request 狀態放 Redis 或 DB。</span></li>
+            <li><b>觀察</b><span>每台 instance 的 P99、thread pool queue、retry ratio、duplicate idemKey replay。</span></li>
+          </ul>
+        </article>
+
+        <article class="detail-card" id="detail-redis-l1">
+          <div class="detail-top">
+            <h3>L1 / Single Redis</h3>
+            <span class="level-chip l1">L1</span>
+          </div>
+          <p>
+            L1 的 Redis 同時扛兩件事：idempotency claim 與 prize stock 扣減。教學重點是先證明原子性，而不是一開始就追求最終規模。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>沒有外部 claim 會造成重試重複扣點；沒有 Lua 原子扣庫存會造成超賣。</span></li>
+            <li><b>處方</b><span>idempotency 使用 SET NX + TTL；stock 使用 GET/DECR 包在 Lua script 中。</span></li>
+            <li><b>觀察</b><span>Redis eval latency、missing key、stock negative、PENDING key 殘留量。</span></li>
+          </ul>
+        </article>
+
+        <article class="detail-card" id="detail-redis-l2">
+          <div class="detail-top">
+            <h3>L2 / Redis Cluster</h3>
+            <span class="level-chip l2">L2</span>
+          </div>
+          <p>
+            L2 把 Redis 從單點變成可擴展或可 failover 的形狀。抽獎庫存通常會遇到 hot key，cluster 解掉容量問題但不會自動解掉單獎品熱點。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>單 Redis CPU、network、memory 或 failover 風險成為瓶頸。</span></li>
+            <li><b>處方</b><span>idem key 可自然分散；stock key 需檢查獎品熱點，必要時做 bucket stock。</span></li>
+            <li><b>觀察</b><span>slot distribution、hot key ops、cluster failover time、Lua cross-slot 限制。</span></li>
+          </ul>
+        </article>
+
+        <article class="detail-card" id="detail-redis-selection">
+          <div class="detail-top">
+            <h3>Redis 外框 / QPS 對選型的影響</h3>
+            <span class="level-chip cross">Cross level</span>
+          </div>
+          <p>
+            Redis 不是單看總 QPS，而是看每次抽獎打幾次 Redis、key 是否集中、失敗時是否會被 retry 放大。
+          </p>
+          <ul class="rx-list">
+            <li><b>估算</b><span>每次 draw 約有 claim、get claim、stock eval、mark done；高 retry 會再放大。</span></li>
+            <li><b>拆分</b><span>idem 是大量分散 key；stock 是少量熱點 key，兩者壓力型態不同。</span></li>
+            <li><b>升級</b><span>L1 看原子性，L2 看 cluster，L3 看事件化，L4 看入口削峰與預扣名額。</span></li>
+          </ul>
+          <div class="callout">
+            如果某個獎品很熱門，Redis cluster 只能把不同 key 分到不同 slot；同一個 prize stock key 仍可能集中在單一 shard。
+          </div>
+        </article>
+
+        <article class="detail-card" id="detail-account">
+          <div class="detail-top">
+            <h3>common.account 扣點與補償</h3>
+            <span class="level-chip l1">L1</span>
+          </div>
+          <p>
+            抽獎不是只改 lottery 狀態，還會碰到使用者點數。L1 用同步扣點與失敗 refund 讓流程容易看懂，但這也是後續 P99 的重要來源。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>account latency 抬高整體 draw latency；失敗時補償不完整會造成點數不一致。</span></li>
+            <li><b>處方</b><span>扣點必須有可重試語意；refund 要能和 draw failure 對帳。</span></li>
+            <li><b>觀察</b><span>deduct success rate、refund count、ledger mismatch、account timeout。</span></li>
+          </ul>
+        </article>
+
+        <article class="detail-card" id="detail-db-record">
+          <div class="detail-top">
+            <h3>PostgreSQL draw_record</h3>
+            <span class="level-chip l1">L1</span>
+          </div>
+          <p>
+            L1 同步寫入 draw_record，讓 replay 可以用 idempotencyKey 找回結果。這張表既是結果歷史，也是重試語意的落點。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>高 QPS 下 insert、index update、connection pool 會影響同步 draw path。</span></li>
+            <li><b>處方</b><span>idempotencyKey 保持 unique；查詢 replay 需要穩定索引。</span></li>
+            <li><b>觀察</b><span>insert P99、unique violation、pool wait、activityId/userId 查詢比例。</span></li>
+          </ul>
+        </article>
+
+        <article class="detail-card" id="detail-l3-async">
+          <div class="detail-top">
+            <h3>L3 / Outbox、MQ 與結果投影</h3>
+            <span class="level-chip l3">L3</span>
+          </div>
+          <p>
+            L3 的精神是縮短同步抽獎路徑，把通知、分析、排行榜、報表投影等非核心工作移出 draw request。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>同步路徑塞太多寫入與外部呼叫，P99 會被最慢的依賴綁住。</span></li>
+            <li><b>處方</b><span>核心結果先可靠落地；其他衍生資料走 outbox 或 MQ consumer。</span></li>
+            <li><b>觀察</b><span>consumer lag、outbox retry、projection freshness、replay 一致性。</span></li>
+          </ul>
+        </article>
+
+        <article class="detail-card" id="detail-l4-traffic">
+          <div class="detail-top">
+            <h3>L4 / Traffic gate、令牌與降級</h3>
+            <span class="level-chip l4">L4</span>
+          </div>
+          <p>
+            L4 不再只靠後端硬扛，而是在入口先決定誰能進入抽獎核心路徑。這能保護 Redis、DB、account，不讓尖峰把一致性元件打穿。
+          </p>
+          <ul class="rx-list">
+            <li><b>症狀</b><span>尖峰 burst 遠大於穩態 QPS，後端即使可水平擴展也會被瞬間重試放大。</span></li>
+            <li><b>處方</b><span>token bucket、排隊、預發 draw token、售罄快速回覆、依活動分流。</span></li>
+            <li><b>觀察</b><span>admission rate、reject reason、queue wait、核心 draw path 的穩態 P99。</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

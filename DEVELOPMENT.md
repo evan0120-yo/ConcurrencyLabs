@@ -1,8 +1,121 @@
+# 專案目的與思考框架（每個接手的 AI 先讀這段）
+
+> 讀完這段，你要自動站到一個角度思考：
+> **在真實系統裡，工程師如何判斷「下一次大改要動哪一包架構」，以及改完後怎麼估「這套平台能撐到哪」。**
+> 這個 lab 練的是這種判斷力，不是背技術名詞。
+
+## 先看一個具體場景：S01 抽獎，現在 3,000 QPS 很穩
+
+```text
+【S01 抽獎系統 · 目前站在 Platform A】
+├─ 現況：約 3,000 QPS，線上很穩
+├─ 已做過的第一輪改造
+│   ├─ hot path 的 JOIN 拆了
+│   ├─ [Redis]   原子扣庫存（Lua 判空+扣減）
+│   ├─ idempotency 去重（SET NX）
+│   └─ [DB]      該建的 index 建了
+└─ 監控開始亮紅燈（接近天花板的訊號）
+    ├─ [DB]      draw_record insert 的 P99 開始飆
+    ├─ [Redis]   stock key 出現熱點
+    └─ [account] service 的 P99 被拖慢
+```
+
+此刻工程師腦中跑的**不是**「我要 20,000 QPS」，而是這四個問題：
+
+```text
+├─ 這套架構還能撐多久？
+├─ 下一個會爆的是哪一塊？
+├─ 如果要大改，這次該動哪幾個大方塊？
+└─ 改完大概能站到哪個容量平台？
+```
+
+## 最容易搞錯的一件事：QPS 不是主詞
+
+```text
+────────── ❌ 錯的思考（QPS 帶路）──────────
+「我要 20,000 QPS，所以架構要怎麼設計？」
+   └─ 先訂數字、再湊架構 —— 像背考古題
+
+────────── ✅ 對的思考（瓶頸帶路）──────────
+「這包架構在 3,000 QPS 很穩，
+  但 draw_record / stock key / account P99 接近危險區，
+  這次我改哪些大方塊？改完估計能站到哪？」
+   └─ QPS 是『改造完才算出來的容量估算』，不是目標
+```
+
+一句話收成通則：
+
+```text
+切分點   = 架構平台版本（Platform A / B / C …）   ← 主詞
+QPS      = 這個平台改造完的容量估算               ← 結果，不是原因
+改造內容 = 這一版實際動了哪幾個大方塊             ← 內容
+```
+
+## 第二個坑：不是「全部叢集化」
+
+叢集不是免費的，一升級就綁進一整包代價：
+
+```text
+上叢集 / 分散式的代價
+├─ 成本上升        多機器 / 授權 / 流量費
+├─ 維運複雜度上升  部署 / 監控 / 擴縮容
+├─ 一致性問題      分片 / 複寫延遲
+├─ debug 變難      問題要跨節點追
+└─ failover 行為   主從切換 / 腦裂
+```
+
+所以決策規則是：
+
+```text
+一次 checkpoint = 一包架構改造
+└─ 但每個大方塊要不要動 → 只看它是不是『下一個瓶頸』
+   ├─ 是下一個瓶頸 → 這次動它
+   └─ 還沒到天花板 → 這次不動，並寫進「沒改的大方塊 ＋ 為何現在不用更重方案」
+```
+
+S01 從 Platform A 跳到 Platform B 的具體示範（重點：**不是全上叢集**）：
+
+```text
+【S01 · Platform A ── 一次改造 ──▶ Platform B】
+├─ 這次動的大方塊
+│   ├─ [Redis]   stock key 分桶（打散熱點）
+│   ├─ [DB]      draw_record 改 outbox / 批次寫（削 insert 壓力）
+│   └─ [account] 呼叫加 timeout + bulkhead（隔離慢依賴）
+├─ 只是配套（不是主角）
+│   └─ app replica 加幾台
+├─ 這次『沒』動的大方塊 ＋ 為何
+│   └─ [DB] 沒上讀寫分離：目前讀壓力還沒到，硬上只是徒增一致性複雜度
+└─ 改完才估算容量：約 10,000 QPS
+```
+
+## 每個「架構平台版本」都用這個模板寫
+
+```text
+Platform X
+├─ 當前問題      哪個指標最接近天花板（附真實 metric）
+├─ 改造內容    這次動了哪幾個大方塊
+├─ 沒改的塊    為什麼現在不用更重方案
+├─ 估算容量      改完大概站到多少 QPS
+└─ 驗證指標      用哪些指標證明真的站上去了
+```
+
+> 所以本專案的 HTML／教學主線，**不叫**「不同 QPS 下要看什麼」，
+> 而叫 **「容量平台演進」**：讀者看到的是工程師如何一包一包把系統推上下一個容量平台。
+
+## 讀完這段，你（AI）該有的反射
+
+```text
+不要問  「這需要多少 QPS？」
+要問    「現在哪個大方塊最接近天花板？
+         這次改哪一包？改完估到哪？哪些先不動、為什麼？」
+```
+
+---
 # DEVELOPMENT.md — ConcurrencyLabs 開發規範
 
 > 跨情境的穩定開發規範書（所有情境共同遵守的硬規則）。
 > 事實文件版本：**SASD**（規格階段產出 `SA.md` + `SD.md`）。
-> 當前分支 QPS 等級：**L1（~3,000 QPS）**（此等級隨 branch 切換而改，見第一節）。
+> 架構平台版本（Platform）：情境內以 **P1 / P2 / … / Pn 子資料夾** 表示（Pn = 第 n 個架構平台；P1 = QPS 3,000+ 基線；平台數量依情境分析而定，見第一節）。
 
 ---
 
@@ -23,25 +136,29 @@
 ### 兩軸正交（本專案特性）
 
 ```text
-package = 情境      com.concurrencylabs.<scenario>（75 個 flat）
-branch  = QPS 等級  L1 / L2 / L3 / L4
+package    = 情境          com.concurrencylabs.<scenario>（75 個 flat）
+P 子資料夾 = 架構平台版本   <scenario>/P1、P2 … Pn（同一情境內並存，可並排對照）
 
-當前分支：L1
-└─ QPS 目標：~3,000（起點級：水平擴展 + Redis + MQ + DB index 開始有感）
-   ⚠ 切換到 L2 / L3 / L4 branch 時，回來改這一段的「當前分支」與「QPS 目標」
-      → 四個分支各自帶不同 QPS 等級描述，其餘規範（二、三、四節）共用
+【切分依據 = 架構平台，不是 QPS】
+├─ 起點：每個情境 user story 一律先假設 QPS 3,000+ = P1（基線平台）
+├─ 往上爬：AI 分析這情境會經過幾個「容量平台（Platform）」，每個平台 = 一次架構改造
+│          = 一組因互相依賴、必須同時改的『大方塊』；每個平台附「為何這些要綁一起」
+├─ 數量不固定：顆粒度依情境的壓力模型 / 一致性可放寬程度而定
+│              業務越能容忍不精確 → 連鎖越少 → 包越少（有些 3 包、有些 8 包）
+└─ QPS 是『果』：某平台改造完才估算它能站到多少 QPS，不是先訂 QPS 再湊架構
 ```
 
 ### 【強制 4 階段】不可省略、不可合併、不可換順序
 
 ```text
-討論階段：與開發者對齊「某情境 × 當前 L」的需求與壓力模型
+討論階段：與開發者對齊「某情境 × 某架構平台 Pn」的需求與壓力模型
        │
        ▼ (開發者下達指令："開始寫文件")
 【規格階段：撰寫事實文件（SASD）】
-(在該情境子資料夾產出 SA.md + SD.md)
-├─ SA.md：Context / DFD / Process Spec / State / Data Dictionary
-└─ SD.md：§0 背景+使用對象+規模估計 / 架構+Structure Chart / Table Schema / API Schema / NFR
+(情境 root 產出 SA.md〔業務行為，平台無關，一份〕+ README〔user story + 容量平台演進地圖〕；
+ 每個架構平台於 <scenario>/Pn/ 產出該平台 SD.md)
+├─ SA.md（root，一份共用）：Context / DFD / Process Spec / State / Data Dictionary
+└─ Pn/SD.md（每平台一份，Code 階段才寫）：§0 背景+規模估計 / 架構+Structure Chart / Table Schema / API Schema / NFR + 該平台改造明細
        │
        ▼ (開發者審閱通過 SA / SD)
 【實作階段：依規編碼與驗證】
@@ -64,7 +181,7 @@ branch  = QPS 等級  L1 / L2 / L3 / L4
 
 ## 二、N-Layer 架構職責（4 層）
 
-每個情境 package 內部一律遵守同一套四層，跨 75 情境一致。
+每個平台（`<scenario>/Pn`）內部一律遵守同一套四層，跨 75 情境、跨所有平台一致。
 
 * **Controller (控制層)**：接收 HTTP 請求，僅處理路由與 `*Req` / `*Resp` 轉換，並直接呼叫對應 Usecase。**【嚴格禁止】包含任何業務邏輯，或直接呼叫 Service / Repository。** 合法方向：`Controller → Usecase`。
 * **Usecase (用例層)**：**核心流程編排者**。必須與 SA 的 DFD、SD 的 Structure Chart 對齊；負責協調呼叫不同 Service 完成業務流程。**【嚴格禁止】直接注入與呼叫 Repository，所有持久化與外部存取必須經由 Service 執行。** 合法方向：`Usecase → Service`。
@@ -88,20 +205,35 @@ com.concurrencylabs
 ├── common                       （跨情境「有狀態共用小模組」；平行於情境）
 │   └── account                  （User + 積分；無 auth，直接傳 userId）＋ 自己的 SA.md / SD.md
 └── <scenario>                   （一個情境一個 package，共 75 個 flat）
-    ├── controller               （僅 HTTP 入口：*Req dto 進、*Resp dto 出）
-    ├── usecase                  （流程編排＝對齊流程圖，不碰 Repository；見第六節）
-    ├── service                  （領域業務邏輯 + 併發編排 + 守門；向 util / common 借共用能力）
-    ├── repository               （只封裝該情境自己的 DB 持久化，不含 Redis / MQ）
-    ├── model                    （僅存放 JPA / Database Entity；嚴禁放 enum / 其他）
-    ├── enums                    （該情境的 enum；平行於 model，不放進 model）
-    ├── object
-    │   ├── dto                  （邊界資料：Controller HTTP + 第三方呼叫；Lombok class）
-    │   └── bo                   （純內部業務載體：工廠輸出、Usecase 處理主體；Lombok class）
-    ├── error                    （ErrorCode enum + Exception + Handler 綁一起）
-    ├── README.md                （情境 user story + 痛點）
-    ├── SA.md / SD.md            （事實文件，SASD；當前 branch 的 QPS 等級版本）
-    └── package-info.java        （情境佔位 + 一行說明）
+    ├── README.md                （user story + 痛點 + 容量平台演進地圖：幾個平台 / 每平台改哪些大方塊 / 容量估算）
+    ├── SA.md                    （事實文件-分析；業務行為，平台無關，一份共用）
+    ├── <scenario>.html          （教學頁：容量平台演進；第一階段先寫）
+    ├── package-info.java        （情境佔位 + 一行說明）
+    └── P1 / P2 / … / Pn         （★ 架構平台；每平台【完全自足】，看某 Pn 不用跳出去。第一階段頂多開空 package，下列內容 Code 階段才寫）
+        ├── controller           （該平台 HTTP 入口：*Req dto 進、*Resp dto 出）
+        ├── usecase              （該平台流程編排＝對齊該平台 SD Sequence；見第六節）
+        ├── service              （該平台領域邏輯 + 併發編排 + 守門；隨架構升級而不同）
+        ├── repository           （該平台 DB 持久化，不含 Redis / MQ）
+        ├── model                （該平台 JPA Entity；各平台各一份，分表等差異直接落自己這份）
+        ├── enums                （該平台 enum）
+        ├── object
+        │   ├── dto              （該平台邊界資料：Controller HTTP + 第三方；Lombok class）
+        │   └── bo               （該平台純內部業務載體；Lombok class）
+        ├── error                （ErrorCode enum + Exception + Handler 綁一起）
+        └── SD.md                （事實文件-設計；該平台架構 + Structure Chart + Table/API Schema + 該平台改造明細）
 ```
+
+> 各平台【完全自足】：model / enums / dto / bo / error / 四層，每個 Pn 各自一套，刻意不共用 root——
+> 目的是「看 P2 就只看 P2」，朋友 / 面試對照時不用在平台間跳；代價是 domain 會重複，接受。
+> SA.md 例外：業務行為平台無關，只在 root 放一份共用（不進 Pn）。
+>
+> 【資訊都在 root，不往 Pn 寫】平台演進的所有 info（幾個平台、每平台改哪些大方塊、容量估算）
+> 一律寫在情境 root 的 README / SA / HTML——尤其 HTML 要能直接畫出多平台的架構變化。
+> 第一階段 Pn 資料夾【頂多開好空 package】，不放任何 doc / code。
+>
+> 產生順序（分階段）：
+> ├─ 第一階段：寫滿情境 root 的 README + SA + HTML（涵蓋 75 情境）；Pn 至多開空 package
+> └─ Code 階段：真要看某情境 code 時，才在其 Pn 內寫 controller…/SD.md（自足），按需生成
 
 > `util` 與 `common` 是刻意的少數特例（平行於 75 情境）：
 > 前者是無狀態工具、後者是有自己資料表的共用小模組；兩者都各自產 SA.md / SD.md。
@@ -110,10 +242,10 @@ com.concurrencylabs
 
 | 物件類型 | 所屬 Package | 主要職責 | 套用場景 / 限制 |
 |:---|:---|:---|:---|
-| **Entity** | `<scenario>.model` | 映射 RDBMS 實體資料表 | **此 package 僅放 Entity，嚴禁放 enum / DTO / BO** |
-| **Enum** | `<scenario>.enums` | 該情境列舉型別（狀態等） | 平行於 model；【不能】命名為 `enum`（Java 保留字） |
-| **DTO** | `<scenario>.object.dto` | 邊界資料：Controller HTTP + 第三方呼叫 | 進入必為 `*Req`、輸出必為 `*Resp`（方向留在名字） |
-| **BO** | `<scenario>.object.bo` | 純內部業務載體 | 僅用於工廠輸出、Usecase / Service 處理主體 |
+| **Entity** | `<scenario>.Pn.model` | 映射 RDBMS 實體資料表 | **此 package 僅放 Entity，嚴禁放 enum / DTO / BO**；各平台各一份 |
+| **Enum** | `<scenario>.Pn.enums` | 該情境列舉型別（狀態等） | 平行於 model；【不能】命名為 `enum`（Java 保留字） |
+| **DTO** | `<scenario>.Pn.object.dto` | 邊界資料：Controller HTTP + 第三方呼叫 | 進入必為 `*Req`、輸出必為 `*Resp`（方向留在名字） |
+| **BO** | `<scenario>.Pn.object.bo` | 純內部業務載體 | 僅用於工廠輸出、Usecase / Service 處理主體 |
 
 > 一律用 **Lombok class，不用 `record`**（非 DDD 專案，且要與 75 情境保持一致；避免「bo 包裡塞 record」的名實不符）。
 > `ErrorCode` 這類「與 Exception / Handler 綁定」的 enum 留在 `error` package，不散到 `enums`。
@@ -121,7 +253,7 @@ com.concurrencylabs
 **原則**：
 
 - 每個 package 職責**單一**，嚴禁混用。
-- 兩軸正交：**package 決定「哪個情境」、branch 決定「哪個 QPS 等級」**；同一情境在 L1~L4 branch 各有一版 SA/SD + code。
+- 兩軸正交：**package 決定「哪個情境」、P 子資料夾決定「哪個架構平台版本」**；同一情境在 P1…Pn 各有一版 SD + 該平台 code（SA 一份共用，見第一節）。
 
 ---
 
@@ -206,6 +338,6 @@ Step 3  能編譯               mvn compile（EXIT=0）
 
 ---
 
-**文件版本**：v1（當前分支 L1）
+**文件版本**：v1
 **事實文件版本**：SASD（SA.md + SD.md）
 **作者**：Claude Opus 4.8

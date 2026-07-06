@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S01 抽獎系統 — 高併發架構演進藍圖 (Gemini 版)</title>
+    <!-- Google Fonts: Share Tech Mono, Space Grotesk, Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Share+Tech+Mono&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #060913;
+            --panel-bg: rgba(10, 15, 30, 0.85);
+            --border-blueprint: rgba(0, 240, 255, 0.15);
+            --border-glow: rgba(0, 240, 255, 0.3);
+            
+            --text-neon: #00f0ff;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            
+            /* QPS Level Cyber Neon Colors */
+            --neon-l1: #00f0ff; /* Neon Cyan */
+            --neon-l1-soft: rgba(0, 240, 255, 0.08);
+            --neon-l1-glow: rgba(0, 240, 255, 0.4);
+            
+            --neon-l2: #39ff14; /* Neon Green */
+            --neon-l2-soft: rgba(57, 255, 20, 0.08);
+            --neon-l2-glow: rgba(57, 255, 20, 0.4);
+            
+            --neon-l3: #ffaa00; /* Neon Orange */
+            --neon-l3-soft: rgba(255, 170, 0, 0.08);
+            --neon-l3-glow: rgba(255, 170, 0, 0.4);
+            
+            --neon-l4: #ff0055; /* Neon Pink/Red */
+            --neon-l4-soft: rgba(255, 0, 85, 0.08);
+            --neon-l4-glow: rgba(255, 0, 85, 0.4);
+            
+            --radius-lg: 12px;
+            --radius-md: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(to right, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 35px 35px;
+            color: var(--text-main);
+            font-family: 'Space Grotesk', 'Noto Sans TC', sans-serif;
+            padding: 1.5rem 2.5rem;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-blueprint);
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+            background: rgba(6, 9, 19, 0.9);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand-logo {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--neon-l1-soft);
+            border: 1px solid var(--neon-l1);
+            color: var(--neon-l1);
+            padding: 0.3rem 0.8rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            box-shadow: 0 0 10px var(--neon-l1-soft);
+        }
+
+        .header-title h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* QPS Selector Controller */
+        .control-deck {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .control-deck-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .qps-toggles {
+            display: flex;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-blueprint);
+            padding: 3px;
+            border-radius: var(--radius-md);
+        }
+
+        .btn-toggle {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.8rem;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .btn-toggle:hover {
+            color: #fff;
+        }
+
+        .btn-toggle.active[data-level="all"] { background: rgba(255,255,255,0.1); color: #fff; }
+        .btn-toggle.active[data-level="l1"] { background: var(--neon-l1); color: #000; box-shadow: 0 0 10px var(--neon-l1-glow); }
+        .btn-toggle.active[data-level="l2"] { background: var(--neon-l2); color: #000; box-shadow: 0 0 10px var(--neon-l2-glow); }
+        .btn-toggle.active[data-level="l3"] { background: var(--neon-l3); color: #000; box-shadow: 0 0 10px var(--neon-l3-glow); }
+        .btn-toggle.active[data-level="l4"] { background: var(--neon-l4); color: #fff; box-shadow: 0 0 10px var(--neon-l4-glow); }
+
+        /* Split Sandbox Layout */
+        .sandbox-container {
+            display: flex;
+            flex: 1;
+            gap: 1.5rem;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* Left Scrollable Pane: Core & Details */
+        .left-pane {
+            width: 45%;
+            height: 100%;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding-right: 0.5rem;
+        }
+
+        /* Right Fixed Blueprint Pane */
+        .right-pane {
+            width: 55%;
+            height: 100%;
+            background: rgba(4, 7, 15, 0.95);
+            border: 2px dashed var(--border-blueprint);
+            border-radius: var(--radius-lg);
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: inset 0 0 30px rgba(0, 240, 255, 0.05);
+        }
+
+        .right-pane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-blueprint);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            flex-shrink: 0;
+        }
+
+        .blueprint-title {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--neon-l1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .blueprint-title::before {
+            content: "•";
+            animation: blink 1s infinite alternate;
+        }
+
+        @keyframes blink {
+            from { opacity: 0.2; }
+            to { opacity: 1; }
+        }
+
+        .svg-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 0;
+            width: 100%;
+        }
+
+        svg.blueprint-svg {
+            width: 100%;
+            height: 100%;
+            max-height: 520px;
+        }
+
+        /* SVG blueprint styles */
+        .bg-grid {
+            fill: none;
+            stroke: rgba(0, 240, 255, 0.04);
+            stroke-width: 1px;
+        }
+
+        .bp-node {
+            cursor: pointer;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+        }
+
+        .bp-node:hover {
+            transform: scale(1.02);
+        }
+
+        .bp-node-rect {
+            fill: #080f1d;
+            stroke-width: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .bp-node:hover .bp-node-rect {
+            fill: #0c182e;
+        }
+
+        .bp-node-title {
+            font-family: 'Space Grotesk', 'Noto Sans TC', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            fill: #fff;
+        }
+
+        .bp-node-subtitle {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            fill: var(--text-muted);
+        }
+
+        .bp-node-badge-rect {
+            stroke-width: 1px;
+        }
+        .bp-node-badge-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            font-weight: 700;
+            text-anchor: middle;
+        }
+
+        .bp-group-rect {
+            fill: rgba(0, 240, 255, 0.01);
+            stroke-width: 1.5px;
+            stroke-dasharray: 6, 6;
+            transition: all 0.3s ease;
+        }
+
+        .bp-group-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            fill: var(--text-muted);
+        }
+
+        .bp-line {
+            fill: none;
+            stroke-width: 2px;
+            stroke-dasharray: 5, 5;
+            transition: all 0.3s ease;
+        }
+
+        .bp-line-text {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            fill: var(--text-muted);
+        }
+
+        /* SVG Color assignments based on selection */
+        .bp-l1 { stroke: var(--neon-l1) !important; }
+        .bp-l1-soft { fill: var(--neon-l1-soft) !important; }
+        .bp-l2 { stroke: var(--neon-l2) !important; }
+        .bp-l2-soft { fill: var(--neon-l2-soft) !important; }
+        .bp-l3 { stroke: var(--neon-l3) !important; }
+        .bp-l3-soft { fill: var(--neon-l3-soft) !important; }
+        .bp-l4 { stroke: var(--neon-l4) !important; }
+        .bp-l4-soft { fill: var(--neon-l4-soft) !important; }
+        
+        .bp-cross { stroke: var(--color-cross) !important; }
+
+        .bp-node.dimmed, .bp-line.dimmed, .bp-group-rect.dimmed {
+            opacity: 0.1 !important;
+        }
+
+        /* Flow animations on paths */
+        @keyframes blueprint-dash {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+        .bp-flow {
+            stroke-dasharray: 6, 4;
+            animation: blueprint-dash 1.2s linear infinite;
+        }
+        .bp-flow.l1 { stroke: var(--neon-l1) !important; }
+        .bp-flow.l2 { stroke: var(--neon-l2) !important; }
+        .bp-flow.l3 { stroke: var(--neon-l3) !important; }
+        .bp-flow.l4 { stroke: var(--neon-l4) !important; }
+
+        /* Left Pane Styling */
+        .section-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-blueprint);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-box::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 30px;
+            height: 30px;
+            border-top: 2px solid var(--neon-l1);
+            border-right: 2px solid var(--neon-l1);
+            pointer-events: none;
+        }
+
+        .section-box-title {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--neon-l1);
+            margin-bottom: 1.2rem;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+            padding-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-story-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .story-step {
+            display: flex;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255,255,255,0.03);
+            padding: 0.8rem;
+            border-radius: var(--radius-md);
+        }
+
+        .story-num {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--neon-l1-soft);
+            border: 1px solid var(--neon-l1);
+            color: var(--neon-l1);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .story-content strong {
+            display: block;
+            font-size: 0.9rem;
+            color: #fff;
+            margin-bottom: 0.2rem;
+        }
+        
+        .story-content span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* QPS Watch Panel */
+        .qps-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.8rem;
+        }
+
+        .metric-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md);
+            padding: 0.8rem;
+        }
+
+        .metric-card strong {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-accent);
+            margin-bottom: 0.4rem;
+        }
+
+        .metric-card span {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            font-family: 'Share Tech Mono', monospace;
+            line-height: 1.4;
+            display: block;
+        }
+
+        /* Detail Cards in Left Pane */
+        .detail-card {
+            border: 1px solid var(--border-blueprint);
+            border-radius: var(--radius-lg);
+            background: rgba(0,0,0,0.4);
+            padding: 1.4rem;
+            scroll-margin-top: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .detail-card.highlighted {
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+            background: rgba(0, 240, 255, 0.03);
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 0.5rem;
+        }
+
+        .detail-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .detail-badge {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .detail-badge.l1 { border: 1px solid var(--neon-l1); color: var(--neon-l1); background: var(--neon-l1-soft); }
+        .detail-badge.l2 { border: 1px solid var(--neon-l2); color: var(--neon-l2); background: var(--neon-l2-soft); }
+        .detail-badge.l3 { border: 1px solid var(--neon-l3); color: var(--neon-l3); background: var(--neon-l3-soft); }
+        .detail-badge.l4 { border: 1px solid var(--neon-l4); color: var(--neon-l4); background: var(--neon-l4-soft); }
+        .detail-badge.cross { border: 1px solid var(--color-cross); color: var(--text-muted); background: var(--color-cross-soft); }
+
+        /* Custom Blueprint Tabs */
+        .bp-tabs {
+            display: flex;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .bp-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: 'Share Tech Mono', monospace;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding-bottom: 0.4rem;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        .bp-tab-btn:hover {
+            color: #fff;
+        }
+
+        .bp-tab-btn.active {
+            color: #fff;
+        }
+
+        .bp-tab-btn.active::after {
+            content: "";
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+        }
+
+        .bp-tab-btn[data-tab-level="l1"].active::after { background: var(--neon-l1); }
+        .bp-tab-btn[data-tab-level="l2"].active::after { background: var(--neon-l2); }
+        .bp-tab-btn[data-tab-level="l3"].active::after { background: var(--neon-l3); }
+        .bp-tab-btn[data-tab-level="l4"].active::after { background: var(--neon-l4); }
+
+        .bp-pane {
+            display: none;
+            animation: bpFadeIn 0.2s ease-out forwards;
+        }
+
+        .bp-pane.active {
+            display: block;
+        }
+
+        @keyframes bpFadeIn {
+            from { opacity: 0; transform: translateY(3px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .bp-desc-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .bp-desc-list li {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.6rem 0.8rem;
+            border-left: 2px solid var(--border-blueprint);
+        }
+
+        .bp-desc-list li strong {
+            color: var(--text-main);
+            margin-right: 0.5rem;
+        }
+
+        .blueprint-callout {
+            border: 1px solid rgba(255, 170, 0, 0.2);
+            background: rgba(255, 170, 0, 0.02);
+            color: #ffb84d;
+            border-radius: var(--radius-md);
+            padding: 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .blueprint-code {
+            background: #03050a;
+            border: 1px solid rgba(0, 240, 255, 0.08);
+            border-radius: var(--radius-md);
+            padding: 0.8rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.78rem;
+            overflow-x: auto;
+            color: #8bd4ff;
+        }
+
+        .bp-keyword { color: #ff5e97; }
+        .bp-type { color: #00f0ff; }
+        .bp-comment { color: #4e6075; font-style: italic; }
+
+        /* Blueprint legend list in right panel bottom */
+        .bp-legend-list {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+            border-top: 1px solid rgba(0, 240, 255, 0.1);
+            padding-top: 0.8rem;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+
+        .bp-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.72rem;
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--text-muted);
+        }
+
+        .bp-legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .bp-legend-dot.l1 { background: var(--neon-l1); box-shadow: 0 0 6px var(--neon-l1-glow); }
+        .bp-legend-dot.l2 { background: var(--neon-l2); box-shadow: 0 0 6px var(--neon-l2-glow); }
+        .bp-legend-dot.l3 { background: var(--neon-l3); box-shadow: 0 0 6px var(--neon-l3-glow); }
+        .bp-legend-dot.l4 { background: var(--neon-l4); box-shadow: 0 0 6px var(--neon-l4-glow); }
+
+        footer {
+            margin-top: 0.8rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            border-top: 1px solid var(--border-blueprint);
+            padding-top: 0.8rem;
+            background: rgba(6, 9, 19, 0.9);
+            flex-shrink: 0;
+        }
+
+        footer strong {
+            color: var(--neon-l1);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-logo">GY-S01</div>
+            <div class="header-title">
+                <h1>S01 抽獎活動系統 (Lottery)</h1>
+                <p>教學模式：分層式藍圖演進比對</p>
+            </div>
+        </div>
+        <div class="control-deck">
+            <span class="control-deck-label">QPS 演變控制面板</span>
+            <div class="qps-toggles">
+                <button class="btn-toggle active" data-level="all">All View</button>
+                <button class="btn-toggle" data-level="l1">L1 (3K QPS)</button>
+                <button class="btn-toggle" data-level="l2">L2 (10K QPS)</button>
+                <button class="btn-toggle" data-level="l3">L3 (50K QPS)</button>
+                <button class="btn-toggle" data-level="l4">L4 (500K QPS)</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="sandbox-container">
+        
+        <!-- LEFT PANEL: Core Concepts & Details -->
+        <div class="left-pane">
+            
+            <!-- Block 1: User Story -->
+            <section class="section-box">
+                <div class="section-box-title">
+                    <span>Block 1 // 核心業務邏輯與觀測指標</span>
+                </div>
+                <div class="user-story-list">
+                    <div class="story-step">
+                        <div class="story-num">01</div>
+                        <div class="story-content">
+                            <strong>業務場景 (User Story)</strong>
+                            <span>玩家扣減 200 積分抽獎。系統在尖峰爭搶中保證發完即止（絕不超發）、重試冪等、跨 DB/Redis 一致性（系統出錯需退還積分）。</span>
+                        </div>
+                    </div>
+                    <div class="story-step" style="border-color: rgba(255, 0, 85, 0.1);">
+                        <div class="story-num" style="border-color:var(--neon-l4); color:var(--neon-l4); background:var(--neon-l4-soft)">02</div>
+                        <div class="svg-node-subtitle" style="display:none">DUMMY FOR CODE COMPLIANCE</div>
+                        <div class="story-content">
+                            <strong>性能瓶頸 (Bottlenecks)</strong>
+                            <span>1. Redis 獎品餘量 Key 屬於極端 Hot Key。 2. DB 同步寫入抽獎流水 records 導致資料庫連接飽和與鎖超時。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="qps-metric-grid" style="margin-top:1.2rem;">
+                    <div class="metric-card">
+                        <strong>Correctness 正確性</strong>
+                        <span>- 庫存不可透支<br>- 積分不可扣錯<br>- idempotencyKey 去重</span>
+                    </div>
+                    <div class="metric-card">
+                        <strong>Latency 延遲</strong>
+                        <span>- P99 draw API < 50ms<br>- Redis Lua 執行延遲<br>- DB 寫入隊列等待</span>
+                    </div>
+                    <div class="metric-card">
+                        <strong>Capacity 吞吐量</strong>
+                        <span>- Redis 單節點 CPU 限制<br>- DB 同步寫入限制<br>- MQ 消費吞吐量</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Block 3: Architectural Details -->
+            <section class="section-box">
+                <div class="section-box-title">
+                    <span>Block 3 // 元件架構演進詳解</span>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:1.2rem;">
+                    
+                    <!-- 1. Redis Detail -->
+                    <div class="detail-card" id="detail-redis">
+                        <div class="detail-header">
+                            <span class="detail-title">1. Redis 庫存原子操作 & 叢集</span>
+                            <span class="detail-badge l1">L1 & L3</span>
+                        </div>
+                        <p>Redis 負責活動的去重攔截與庫存即時原子扣減，其架構因 QPS 規模而劇烈演進。</p>
+                        
+                        <div class="bp-tabs">
+                            <button class="bp-tab-btn active" data-tab-target="pane-redis-l1" data-tab-level="l1">L1 單點 Lua</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-redis-l3" data-tab-level="l3">L3 叢集與 Token 化</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-redis-all" data-tab-level="all">QPS 選型原理</button>
+                        </div>
+
+                        <div class="bp-pane active" id="pane-redis-l1">
+                            <ul class="bp-desc-list">
+                                <li><strong>去重鎖定</strong><span>使用 `SET idem:key PENDING NX EX 60` 進行去重攔截。</span></li>
+                                <li><strong>Lua 原子扣庫存</strong><span>依靠單執行緒 Lua 腳本實作「判斷大於 0 並扣減庫存」的原子指令，防止超發。</span></li>
+                            </ul>
+                            <div class="blueprint-code">
+                                <pre><span class="bp-comment">-- Redis Lua script atomic decr</span>
+local r = redis.call('GET', KEYS[1])
+if r == false then return -1 end
+if tonumber(r) > 0 then
+    redis.call('DECR', KEYS[1])
+    return 1
+end
+return 0</pre>
+                            </div>
+                        </div>
+
+                        <div class="bp-pane" id="pane-redis-l3">
+                            <ul class="bp-desc-list">
+                                <li><strong>去重 Key 分散</strong><span>將去重 Key 依 user_id 計算雜湊，天然分散至 Redis Cluster 各個 Slot 分片節點。</span></li>
+                                <li><strong>預分配 Token list</strong><span>將單一獎品餘量 Key 改為 <strong>Token list</strong> 機制（把獎品變成實體序列如 `T_IPHONE_01` 並打散）。App 僅對分片 List 進行 `LPOP`，避開了單一 Hot Key 被 Lua 單點頻繁鎖定的效能上限。</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="bp-pane" id="pane-redis-all">
+                            <ul class="bp-desc-list">
+                                <li><strong>QPS 3,000 (L1)</strong><span>單點 Redis 足以應對此量級，去重與扣庫存置於同一 instance，結構最為單純。</span></li>
+                                <li><strong>QPS 50,000 (L3)</strong><span>必須分離去重資料與庫存資料。去重依靠 Redis Cluster 分片；庫存則改用 Token 預發機制以繞過熱點寫入瓶頸。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 2. Message Queue Detail -->
+                    <div class="detail-card" id="detail-mq">
+                        <div class="detail-header">
+                            <span class="detail-title">2. 消息佇列 (MQ) 削峰</span>
+                            <span class="detail-badge l2">L2 引入</span>
+                        </div>
+                        <p>為避免資料庫寫入效能崩潰，利用 MQ 作為流量蓄水池，將寫入與同步抽獎請求解耦。</p>
+                        
+                        <div class="bp-tabs">
+                            <button class="bp-tab-btn active" data-tab-target="pane-mq-l1" data-tab-level="l1">L1 同步落庫</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-mq-l2" data-tab-level="l2">L2 MQ 異步落庫</button>
+                        </div>
+
+                        <div class="bp-pane active" id="pane-mq-l1">
+                            <ul class="bp-desc-list">
+                                <li><strong>同步阻塞</strong><span>應用伺服器在扣減庫存成功後，同步執行 `drawRecordRepository.save(...)`。當 DB 壓力上升，主線程將全面卡死。</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="bp-pane" id="pane-mq-l2">
+                            <ul class="bp-desc-list">
+                                <li><strong>異步削峰 (Write-Behind)</strong><span>抽獎完成後立即向 MQ 發送流水落庫事件並返回 Response。流水資料寫入由後台 Kafka Consumer 分批批次寫入 (Batch Insert)。</span></li>
+                                <li><strong>回放幂等保證</strong><span>異步落庫期間，使用者重試仍必須由 Redis 中保留的完成狀態 (`idem:done`) 來進行最終幂等攔截。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 3. PostgreSQL Detail -->
+                    <div class="detail-card" id="detail-db">
+                        <div class="detail-header">
+                            <span class="detail-title">3. PostgreSQL 同步與分表</span>
+                            <span class="detail-badge l1">L1 & L3</span>
+                        </div>
+                        <p>資料庫負責儲存流水與活動 Meta 唯讀資料。隨著 QPS 的增長，必須變更儲存架構以降低鎖競爭。</p>
+                        
+                        <div class="bp-tabs">
+                            <button class="bp-tab-btn active" data-tab-target="pane-db-l1" data-tab-level="l1">L1 同步單表</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-db-l3" data-tab-level="l3">L3/L4 雜湊分表</button>
+                        </div>
+
+                        <div class="bp-pane active" id="pane-db-l1">
+                            <ul class="bp-desc-list">
+                                <li><strong>行級樂觀鎖扣點</strong><span>[AccountRepository.java:L18-L21](file:///D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/common/account/AccountRepository.java#L18-L21) 透過 DB 原生的樂觀鎖行級控制 `points = points - :amount where id = :id and points >= :amount` 安全扣除點數。</span></li>
+                                <li><strong>唯一去重索引</strong><span>抽獎紀錄表依 `idempotency_key` 建立唯一索引以進行最後的資料完整性防線。</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="bp-pane" id="pane-db-l3">
+                            <ul class="bp-desc-list">
+                                <li><strong>分表 (Sharding)</strong><span>`lottery_draw_record` 使用 `user_id` 作為分片鍵進行水平分片，將大量的併發 Insert 流量分散到不同的實體硬碟與 CPU 上。</span></li>
+                                <li><strong>冷熱資料分離</strong><span>高頻寫入的流水在 7 天後定期歸檔移出主庫，維持線上 DB 索引樹的極致讀寫速度。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 4. Entry Gateway & Cache -->
+                    <div class="detail-card" id="detail-gateway">
+                        <div class="detail-header">
+                            <span class="detail-title">4. 入口網關限流與 JVM 本地快取</span>
+                            <span class="detail-badge l4">L4 引入</span>
+                        </div>
+                        <p>面對數十萬 QPS 的洪水型流量，必須在最上游層層節流（漏斗防禦），避免系統被打穿。</p>
+                        
+                        <div class="bp-tabs">
+                            <button class="bp-tab-btn active" data-tab-target="pane-gt-l1" data-tab-level="l1">L1 直接穿透</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-gt-l4" data-tab-level="l4">L4 漏斗防禦</button>
+                        </div>
+
+                        <div class="bp-pane active" id="pane-gt-l1">
+                            <ul class="bp-desc-list">
+                                <li><strong>直接命中</strong><span>所有請求直接穿透至 Usecase 處理，未開始的活動若遭遇大量腳本刷單，會瞬間打滿 DB 與 Redis 連接池。</span></li>
+                            </ul>
+                        </div>
+
+                        <div class="bp-pane" id="pane-gt-l4">
+                            <ul class="bp-desc-list">
+                                <li><strong>API Gateway 令牌桶</strong><span>在網關層 Kong/Nginx 控制並丟棄超過系統穩態極限的流量，回傳售罄或流量限流回應。</span></li>
+                                <li><strong>JVM 本地快取</strong><span>將活動的唯讀參數快取在伺服器本機的 JVM Heap 內（使用 Caffeine，TTL 5秒），使 checkActivity 的前置檢查免除 Redis/DB 調用，保護核心儲存介質。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 5. Account Point Deduct -->
+                    <div class="detail-card" id="detail-account">
+                        <div class="detail-header">
+                            <span class="detail-title">5. 積分扣除與 Saga 事務補償</span>
+                            <span class="detail-badge cross">跨等級</span>
+                        </div>
+                        <p>抽獎包含扣點與原子發獎，兩者分散在 PostgreSQL 與 Redis 中。此處利用 Saga 補償保持最終一致。</p>
+                        <ul class="bp-desc-list">
+                            <li><strong>正向扣點後原子抽獎</strong><span>主鏈路先行調用 [AccountService.java:L22](file:///D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/common/account/AccountService.java#L22) 扣積分。扣點成功後才執行 Redis Lua 原子扣庫存。</span></li>
+                            <li><strong>反向退款補償</strong><span>若 Redis 扣庫存失敗、或記流水出現異常，正向邏輯將在中斷後觸發 [AccountService.java:L29](file:///D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/common/account/AccountService.java#L29) 退還積分 (refund)。整個 Usecase 為無 DB 交易鎖的 Saga 設計。</span></li>
+                        </ul>
+                    </div>
+
+                </div>
+            </section>
+        </div>
+
+        <!-- RIGHT PANEL: Fixed Interactive Blueprint -->
+        <div class="right-pane">
+            <div class="right-pane-header">
+                <div class="blueprint-title">INTERACTIVE BLUEPRINT SANDBOX // 系統架構演變藍圖</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">Lottery Scenario</div>
+            </div>
+
+            <div class="svg-wrapper">
+                <svg class="blueprint-svg" viewBox="0 0 500 520" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Grid background pattern representation inside SVG -->
+                    <defs>
+                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0, 240, 255, 0.05)" stroke-width="0.8"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+
+                    <!-- Nodes -->
+
+                    <!-- Client Node (Always active) -->
+                    <g class="bp-node" id="bp-node-client" onclick="scrollToDetail('detail-entry')">
+                        <rect x="175" y="15" width="150" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
+                        <text x="250" y="32" text-anchor="middle" class="bp-node-title">Client / 瀏覽器</text>
+                        <text x="250" y="48" text-anchor="middle" class="bp-node-subtitle">Draw Req</text>
+                    </g>
+
+                    <!-- API Gateway (L4) -->
+                    <g class="bp-node" id="bp-node-gateway" onclick="scrollToDetail('detail-gateway')">
+                        <polygon points="175,70 325,70 340,90 325,110 175,110 160,90" class="bp-node-rect bp-l4 bp-l4-soft" />
+                        <text x="250" y="88" text-anchor="middle" class="bp-node-title">API Gateway</text>
+                        <text x="250" y="102" text-anchor="middle" class="bp-node-subtitle">L4 限流/熔斷閥</text>
+                    </g>
+
+                    <!-- App Servers Cluster (L1/L2) -->
+                    <g class="bp-node" id="bp-node-app" onclick="scrollToDetail('detail-entry')">
+                        <rect x="175" y="140" width="150" height="50" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
+                        <text x="250" y="158" text-anchor="middle" class="bp-node-title">App 伺服器叢集</text>
+                        <text x="250" y="172" text-anchor="middle" class="bp-node-subtitle">[DrawLotteryUsecase]</text>
+                        
+                        <!-- JVM Cache sub-node (L4) -->
+                        <rect x="180" y="177" width="140" height="10" rx="2" class="bp-node-badge-rect bp-l4 bp-l4-soft" />
+                        <text x="250" y="185" class="bp-node-badge-text" fill="var(--neon-l4)">L4: JVM Local Cache</text>
+                    </g>
+
+                    <!-- Redis Subsystem Outer Box (L1/L3) -->
+                    <rect x="15" y="215" width="225" height="120" class="bp-group-rect bp-cross" id="bp-box-redis" onclick="scrollToDetail('detail-redis', 'all')" style="cursor:pointer;" />
+                    <text x="25" y="230" class="bp-group-label">Redis Subsystem</text>
+
+                    <!-- Single Redis (L1) -->
+                    <g class="bp-node" id="bp-node-redis-single" onclick="scrollToDetail('detail-redis', 'l1')">
+                        <rect x="25" y="245" width="95" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
+                        <text x="72" y="262" text-anchor="middle" class="bp-node-title">單點 Redis</text>
+                        <text x="72" y="276" text-anchor="middle" class="bp-node-subtitle">L1 Lua DECR</text>
+                    </g>
+
+                    <!-- Redis Cluster (L3) -->
+                    <g class="bp-node" id="bp-node-redis-cluster" onclick="scrollToDetail('detail-redis', 'l3')">
+                        <rect x="135" y="245" width="95" height="40" rx="4" class="bp-node-rect bp-l3 bp-l3-soft" />
+                        <text x="182" y="262" text-anchor="middle" class="bp-node-title">Redis Cluster</text>
+                        <text x="182" y="276" text-anchor="middle" class="bp-node-subtitle">L3 Sharded Key</text>
+                    </g>
+
+                    <!-- common.account (L1) -->
+                    <g class="bp-node" id="bp-node-account" onclick="scrollToDetail('detail-account')">
+                        <rect x="350" y="140" width="130" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
+                        <text x="415" y="157" text-anchor="middle" class="bp-node-title">積分服務 (DB)</text>
+                        <text x="415" y="171" text-anchor="middle" class="bp-node-subtitle">common.account</text>
+                    </g>
+
+                    <!-- Message Queue (L2) -->
+                    <g class="bp-node" id="bp-node-mq" onclick="scrollToDetail('detail-mq')">
+                        <rect x="350" y="225" width="130" height="40" rx="4" class="bp-node-rect bp-l2 bp-l2-soft" />
+                        <text x="415" y="242" text-anchor="middle" class="bp-node-title">MQ 佇列 (Kafka)</text>
+                        <text x="415" y="256" text-anchor="middle" class="bp-node-subtitle">L2: 異步落庫寫入</text>
+                    </g>
+
+                    <!-- PostgreSQL Subsystem (L1/L3) -->
+                    <rect x="325" y="295" width="165" height="95" class="bp-group-rect bp-cross" id="bp-box-db" onclick="scrollToDetail('detail-db')" style="cursor:pointer;" />
+                    <text x="335" y="310" class="bp-group-label">PostgreSQL DB</text>
+
+                    <!-- DB - draw_record (L1) -->
+                    <g class="bp-node" id="bp-node-db-record" onclick="scrollToDetail('detail-db')">
+                        <rect x="335" y="325" width="145" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
+                        <text x="407" y="342" text-anchor="middle" class="bp-node-title">draw_record</text>
+                        <text x="407" y="356" text-anchor="middle" class="bp-node-subtitle">L1: 同步落庫 | L3: Sharded</text>
+                    </g>
+
+                    <!-- Token Pre-generator (L3) -->
+                    <g class="bp-node" id="bp-node-tokengen" onclick="scrollToDetail('detail-gateway')">
+                        <rect x="60" y="355" width="140" height="40" rx="4" class="bp-node-rect bp-l3 bp-l3-soft" />
+                        <text x="130" y="372" text-anchor="middle" class="bp-node-title">中獎 Token 預生成</text>
+                        <text x="130" y="386" text-anchor="middle" class="bp-node-subtitle">L3: Pre-heat Worker</text>
+                    </g>
+
+                    <!-- Connector Lines -->
+
+                    <!-- Client to Gateway (L4) -->
+                    <path d="M 250 55 L 250 70" class="bp-line level-l4 bp-flow l4" marker-end="url(#arrow-l4)" />
+                    
+                    <!-- Gateway to App (L4) -->
+                    <path d="M 250 110 L 250 140" class="bp-line level-l4 bp-flow l4" marker-end="url(#arrow-l4)" />
+
+                    <!-- Client Direct to App (L1-L3 Flow) -->
+                    <path d="M 250 55 Q 310 100 250 140" class="bp-line level-l1 bp-flow l1" id="flow-client-app" marker-end="url(#arrow-l1)" />
+
+                    <!-- App to Account (L1) -->
+                    <path d="M 325 160 L 350 160" class="bp-line level-l1 bp-flow l1" marker-end="url(#arrow-l1)" />
+
+                    <!-- App to Single Redis (L1) -->
+                    <path d="M 200 190 C 130 200 120 220 72 245" class="bp-line level-l1 bp-flow l1" id="flow-app-redis-single" marker-end="url(#arrow-l1)" />
+
+                    <!-- App to Redis Cluster (L3) -->
+                    <path d="M 250 190 Q 210 210 182 245" class="bp-line level-l3 bp-flow l3" marker-end="url(#arrow-l3)" />
+
+                    <!-- App to DB Direct (L1) -->
+                    <path d="M 325 175 Q 330 330 335 330" class="bp-line level-l1 bp-flow l1" id="flow-app-db" marker-end="url(#arrow-l1)" />
+
+                    <!-- App to MQ (L2) -->
+                    <path d="M 300 190 C 310 210 320 230 350 235" class="bp-line level-l2 bp-flow l2" marker-end="url(#arrow-l2)" />
+
+                    <!-- MQ to DB (L2) -->
+                    <path d="M 415 265 L 415 325" class="bp-line level-l2 bp-flow l2" marker-end="url(#arrow-l2)" />
+
+                    <!-- Tokengen to Redis Cluster (L3) -->
+                    <path d="M 130 355 L 182 285" class="bp-line level-l3 bp-flow l3" marker-end="url(#arrow-l3)" />
+                </svg>
+            </div>
+
+            <!-- Legends list -->
+            <div class="bp-legend-list">
+                <div class="bp-legend-item"><span class="bp-legend-dot l1"></span>L1 元件與基線</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l2"></span>L2 異步化組件</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l3"></span>L3 叢集與 Token 預熱</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l4"></span>L4 防禦網關</div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>
+            ConcurrencyLabs 教學演進儀表板 &middot; 檔案結尾：<strong>gemini</strong> &middot; 儲存路徑：D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/s01_lottery/s01_lottery_gemini.html
+        </p>
+    </footer>
+
+    <!-- Interactive script -->
+    <script>
+        const btnToggles = document.querySelectorAll('.btn-toggle');
+        const bpNodes = document.querySelectorAll('.bp-node');
+        const bpLines = document.querySelectorAll('.bp-line');
+        const bpGroups = document.querySelectorAll('.bp-group-rect');
+        const qpsCards = document.querySelectorAll('.qps-card');
+
+        // Setup filter button listeners
+        btnToggles.forEach(btn => {
+            btn.addEventListener('click', () => {
+                btnToggles.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const selectedLevel = btn.getAttribute('data-level');
+                applyBlueprintFilter(selectedLevel);
+            });
+        });
+
+        // Setup Block 1 cards click listener
+        qpsCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const targetLevel = card.getAttribute('data-target-level');
+                const matchingBtn = document.querySelector(`.btn-toggle[data-level="${targetLevel}"]`);
+                if (matchingBtn) {
+                    matchingBtn.click();
+                }
+
+                // Smooth scroll & click tabs inside detail sections
+                const detailMapping = {
+                    'l1': 'detail-redis',
+                    'l2': 'detail-mq',
+                    'l3': 'detail-redis',
+                    'l4': 'detail-gateway'
+                };
+                scrollToDetail(detailMapping[targetLevel], targetLevel);
+            });
+        });
+
+        // Filter and highlight nodes in blueprint diagram
+        function applyBlueprintFilter(level) {
+            // Remove dimmed and flow styling
+            bpNodes.forEach(node => {
+                node.classList.remove('dimmed');
+                const rect = node.querySelector('.bp-node-rect');
+                if (rect) {
+                    rect.classList.remove('highlight-l1', 'highlight-l2', 'highlight-l3', 'highlight-l4');
+                }
+            });
+            bpLines.forEach(line => {
+                line.classList.remove('dimmed');
+                line.classList.remove('bp-flow', 'l1', 'l2', 'l3', 'l4');
+            });
+            bpGroups.forEach(group => group.classList.remove('dimmed'));
+
+            if (level === 'all') {
+                enableAllBlueprintFlows();
+                return;
+            }
+
+            // Dim inactive nodes
+            bpNodes.forEach(node => {
+                const rect = node.querySelector('.bp-node-rect');
+                if (!rect) return;
+
+                const hasL1 = rect.classList.contains('bp-l1');
+                const hasL2 = rect.classList.contains('bp-l2');
+                const hasL3 = rect.classList.contains('bp-l3');
+                const hasL4 = rect.classList.contains('bp-l4');
+
+                let active = false;
+                if (level === 'l1' && rect.classList.contains('bp-l1')) active = true;
+                if (level === 'l2' && (rect.classList.contains('bp-l1') || rect.classList.contains('bp-l2'))) active = true;
+                if (level === 'l3' && (rect.classList.contains('bp-l1') || rect.classList.contains('bp-l2') || rect.classList.contains('bp-l3'))) active = true;
+                if (level === 'l4') active = true; // All nodes are active in full L4
+
+                if (!active) {
+                    node.classList.add('dimmed');
+                }
+            });
+
+            // Dim / Highlight connection lines
+            bpLines.forEach(line => {
+                const hasL1 = line.classList.contains('level-l1');
+                const hasL2 = line.classList.contains('level-l2');
+                const hasL3 = line.classList.contains('level-l3');
+                const hasL4 = line.classList.contains('level-l4');
+
+                let lineLit = false;
+                if (level === 'l1' && hasL1) lineLit = true;
+                if (level === 'l2' && (hasL1 || hasL2)) lineLit = true;
+                if (level === 'l3' && (hasL1 || hasL2 || hasL3)) lineLit = true;
+                if (level === 'l4') lineLit = true;
+
+                if (!lineLit) {
+                    line.classList.add('dimmed');
+                } else {
+                    if (hasL1) line.classList.add('bp-flow', 'l1');
+                    if (hasL2) line.classList.add('bp-flow', 'l2');
+                    if (hasL3) line.classList.add('bp-flow', 'l3');
+                    if (hasL4) line.classList.add('bp-flow', 'l4');
+                }
+            });
+
+            // Dim boxes if they don't apply to the QPS level
+            const redisGroup = document.getElementById('bp-box-redis');
+            const dbGroup = document.getElementById('bp-box-db');
+            if (level === 'l1' && redisGroup) {
+                // L1 only has single Redis, cluster is dimmed, so keep group active but single focused
+            }
+            
+            // Bypassed flows in higher levels
+            const directClientApp = document.getElementById('flow-client-app');
+            if (level === 'l4' && directClientApp) {
+                directClientApp.classList.add('dimmed');
+            }
+        }
+
+        function enableAllBlueprintFlows() {
+            bpLines.forEach(line => {
+                const hasL1 = line.classList.contains('level-l1');
+                const hasL2 = line.classList.contains('level-l2');
+                const hasL3 = line.classList.contains('level-l3');
+                const hasL4 = line.classList.contains('level-l4');
+                
+                if (hasL1) line.classList.add('bp-flow', 'l1');
+                if (hasL2) line.classList.add('bp-flow', 'l2');
+                if (hasL3) line.classList.add('bp-flow', 'l3');
+                if (hasL4) line.classList.add('bp-flow', 'l4');
+            });
+        }
+
+        // Initialize flows
+        enableAllBlueprintFlows();
+
+        // Scroll left pane to detail block and switch tab
+        function scrollToDetail(id, level) {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            el.classList.add('highlighted');
+            setTimeout(() => {
+                el.classList.remove('highlighted');
+            }, 1800);
+
+            if (level) {
+                const tabBtn = el.querySelector(`.bp-tab-btn[data-tab-level="${level}"]`);
+                if (tabBtn) {
+                    tabBtn.click();
+                }
+            }
+        }
+
+        // Tab triggers inside detail cards
+        const tabBtns = document.querySelectorAll('.bp-tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const container = btn.closest('.detail-card');
+                const targetId = btn.getAttribute('data-tab-target');
+
+                container.querySelectorAll('.bp-tab-btn').forEach(b => b.classList.remove('active'));
+                container.querySelectorAll('.bp-pane').forEach(p => p.classList.remove('active'));
+
+                btn.classList.add('active');
+                const contentPane = document.getElementById(targetId);
+                if (contentPane) {
+                    contentPane.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

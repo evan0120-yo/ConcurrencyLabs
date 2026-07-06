@@ -16,7 +16,9 @@
       "Skill(write-fact-docs-sasd)",
       "Skill(write-fact-docs-sasd:*)",
       "Bash(mvn -q -DskipTests compile)",
-      "Read(//c/Users/User/.claude/**)"
+      "Read(//c/Users/User/.claude/**)",
+      "Bash(exit 1)",
+      "Bash(mvn clean *)"
     ]
   }
 }
