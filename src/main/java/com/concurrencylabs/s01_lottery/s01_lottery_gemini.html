@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S01 抽獎系統 — 高併發架構演進藍圖 (Gemini 版)</title>
+    <title>S01 抽獎系統 — 容量平台演進藍圖 (Gemini 版)</title>
     <!-- Google Fonts: Share Tech Mono, Space Grotesk, Noto Sans TC -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
             --text-main: #e2e8f0;
             --text-muted: #64748b;
             
-            /* QPS Level Cyber Neon Colors */
+            /* Platform Cyber Neon Colors */
             --neon-l1: #00f0ff; /* Neon Cyan */
             --neon-l1-soft: rgba(0, 240, 255, 0.08);
             --neon-l1-glow: rgba(0, 240, 255, 0.4);
@@ -105,7 +105,7 @@
             font-size: 0.85rem;
         }
 
-        /* QPS Selector Controller */
+        /* Platform Selector Controller */
         .control-deck {
             display: flex;
             align-items: center;
@@ -414,7 +414,7 @@
             color: var(--text-muted);
         }
 
-        /* QPS Watch Panel */
+        /* Platform Watch Panel */
         .qps-metric-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -644,17 +644,17 @@
             <div class="brand-logo">GY-S01</div>
             <div class="header-title">
                 <h1>S01 抽獎活動系統 (Lottery)</h1>
-                <p>教學模式：分層式藍圖演進比對</p>
+                <p>教學模式：P1-P4 容量平台演進比對</p>
             </div>
         </div>
         <div class="control-deck">
-            <span class="control-deck-label">QPS 演變控制面板</span>
+            <span class="control-deck-label">容量平台控制面板</span>
             <div class="qps-toggles">
-                <button class="btn-toggle active" data-level="all">All View</button>
-                <button class="btn-toggle" data-level="l1">L1 (3K QPS)</button>
-                <button class="btn-toggle" data-level="l2">L2 (10K QPS)</button>
-                <button class="btn-toggle" data-level="l3">L3 (50K QPS)</button>
-                <button class="btn-toggle" data-level="l4">L4 (500K QPS)</button>
+                <button class="btn-toggle active" data-level="all">全部平台</button>
+                <button class="btn-toggle" data-level="l1">P1 (約 3K)</button>
+                <button class="btn-toggle" data-level="l2">P2 (約 10K)</button>
+                <button class="btn-toggle" data-level="l3">P3 (約 50K)</button>
+                <button class="btn-toggle" data-level="l4">P4 (100K+)</button>
             </div>
         </div>
     </header>
@@ -673,31 +673,31 @@
                     <div class="story-step">
                         <div class="story-num">01</div>
                         <div class="story-content">
-                            <strong>業務場景 (User Story)</strong>
+                            <strong>業務場景</strong>
                             <span>玩家扣減 200 積分抽獎。系統在尖峰爭搶中保證發完即止（絕不超發）、重試冪等、跨 DB/Redis 一致性（系統出錯需退還積分）。</span>
                         </div>
                     </div>
                     <div class="story-step" style="border-color: rgba(255, 0, 85, 0.1);">
                         <div class="story-num" style="border-color:var(--neon-l4); color:var(--neon-l4); background:var(--neon-l4-soft)">02</div>
-                        <div class="svg-node-subtitle" style="display:none">DUMMY FOR CODE COMPLIANCE</div>
+                        <div class="svg-node-subtitle" style="display:none">輔助占位</div>
                         <div class="story-content">
-                            <strong>性能瓶頸 (Bottlenecks)</strong>
-                            <span>1. Redis 獎品餘量 Key 屬於極端 Hot Key。 2. DB 同步寫入抽獎流水 records 導致資料庫連接飽和與鎖超時。</span>
+                            <strong>性能瓶頸</strong>
+                            <span>1. Redis 獎品餘量 Key 屬於極端 熱 key。 2. DB 同步寫入抽獎流水 records 導致資料庫連接飽和與鎖超時。</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="qps-metric-grid" style="margin-top:1.2rem;">
                     <div class="metric-card">
-                        <strong>Correctness 正確性</strong>
+                        <strong>正確性</strong>
                         <span>- 庫存不可透支<br>- 積分不可扣錯<br>- idempotencyKey 去重</span>
                     </div>
                     <div class="metric-card">
-                        <strong>Latency 延遲</strong>
+                        <strong>延遲</strong>
                         <span>- P99 draw API < 50ms<br>- Redis Lua 執行延遲<br>- DB 寫入隊列等待</span>
                     </div>
                     <div class="metric-card">
-                        <strong>Capacity 吞吐量</strong>
+                        <strong>容量 / 吞吐量</strong>
                         <span>- Redis 單節點 CPU 限制<br>- DB 同步寫入限制<br>- MQ 消費吞吐量</span>
                     </div>
                 </div>
@@ -714,15 +714,15 @@
                     <!-- 1. Redis Detail -->
                     <div class="detail-card" id="detail-redis">
                         <div class="detail-header">
-                            <span class="detail-title">1. Redis 庫存原子操作 & 叢集</span>
-                            <span class="detail-badge l1">L1 & L3</span>
+                            <span class="detail-title">1. Redis 去重與庫存熱點</span>
+                            <span class="detail-badge l1">P1 & P3</span>
                         </div>
-                        <p>Redis 負責活動的去重攔截與庫存即時原子扣減，其架構因 QPS 規模而劇烈演進。</p>
+                        <p>Redis 負責活動的去重攔截與庫存即時原子扣減；真正要看的不是總 QPS，而是哪個平台瓶頸正在逼近天花板。</p>
                         
                         <div class="bp-tabs">
-                            <button class="bp-tab-btn active" data-tab-target="pane-redis-l1" data-tab-level="l1">L1 單點 Lua</button>
-                            <button class="bp-tab-btn" data-tab-target="pane-redis-l3" data-tab-level="l3">L3 叢集與 Token 化</button>
-                            <button class="bp-tab-btn" data-tab-target="pane-redis-all" data-tab-level="all">QPS 選型原理</button>
+                            <button class="bp-tab-btn active" data-tab-target="pane-redis-l1" data-tab-level="l1">P1 單點 Lua</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-redis-l3" data-tab-level="l3">P3 分桶與 Token 化</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-redis-all" data-tab-level="all">平台選型原理</button>
                         </div>
 
                         <div class="bp-pane active" id="pane-redis-l1">
@@ -731,28 +731,24 @@
                                 <li><strong>Lua 原子扣庫存</strong><span>依靠單執行緒 Lua 腳本實作「判斷大於 0 並扣減庫存」的原子指令，防止超發。</span></li>
                             </ul>
                             <div class="blueprint-code">
-                                <pre><span class="bp-comment">-- Redis Lua script atomic decr</span>
-local r = redis.call('GET', KEYS[1])
-if r == false then return -1 end
-if tonumber(r) > 0 then
-    redis.call('DECR', KEYS[1])
-    return 1
-end
-return 0</pre>
+                                <pre>P1 不變量：
+- 去重 claim 必須是共享且原子的
+- 庫存扣減必須把判斷與扣減放在同一個原子步驟
+- 教學重點是不變量，不是對應到某個 Java 方法</pre>
                             </div>
                         </div>
 
                         <div class="bp-pane" id="pane-redis-l3">
                             <ul class="bp-desc-list">
-                                <li><strong>去重 Key 分散</strong><span>將去重 Key 依 user_id 計算雜湊，天然分散至 Redis Cluster 各個 Slot 分片節點。</span></li>
-                                <li><strong>預分配 Token list</strong><span>將單一獎品餘量 Key 改為 <strong>Token list</strong> 機制（把獎品變成實體序列如 `T_IPHONE_01` 並打散）。App 僅對分片 List 進行 `LPOP`，避開了單一 Hot Key 被 Lua 單點頻繁鎖定的效能上限。</span></li>
+                                <li><strong>去重 Key 分散</strong><span>將去重 Key 依 user_id 計算雜湊，天然分散至 Redis 各個 Slot；庫存熱點則靠分桶或 token 池拆解。</span></li>
+                                <li><strong>預分配 Token 清單</strong><span>將單一獎品餘量 Key 改為 <strong>Token 清單</strong> 機制（把獎品變成實體序列如 `T_IPHONE_01` 並打散）。App 僅對分片 List 進行 `LPOP`，避開了單一 熱 key 被 Lua 單點頻繁鎖定的效能上限。</span></li>
                             </ul>
                         </div>
 
                         <div class="bp-pane" id="pane-redis-all">
                             <ul class="bp-desc-list">
-                                <li><strong>QPS 3,000 (L1)</strong><span>單點 Redis 足以應對此量級，去重與扣庫存置於同一 instance，結構最為單純。</span></li>
-                                <li><strong>QPS 50,000 (L3)</strong><span>必須分離去重資料與庫存資料。去重依靠 Redis Cluster 分片；庫存則改用 Token 預發機制以繞過熱點寫入瓶頸。</span></li>
+                                <li><strong>P1 基線（約 3,000 QPS）</strong><span>單點 Redis 足以應對此量級，去重與扣庫存置於同一 instance，結構最為單純。</span></li>
+                                <li><strong>P3 熱點平台（約 50,000 QPS）</strong><span>必須分離去重資料與庫存資料。去重依靠 Redis 分片或分桶；庫存則改用 Token 預發機制以繞過熱點寫入瓶頸。</span></li>
                             </ul>
                         </div>
                     </div>
@@ -761,24 +757,24 @@ return 0</pre>
                     <div class="detail-card" id="detail-mq">
                         <div class="detail-header">
                             <span class="detail-title">2. 消息佇列 (MQ) 削峰</span>
-                            <span class="detail-badge l2">L2 引入</span>
+                            <span class="detail-badge l2">P2 引入</span>
                         </div>
                         <p>為避免資料庫寫入效能崩潰，利用 MQ 作為流量蓄水池，將寫入與同步抽獎請求解耦。</p>
                         
                         <div class="bp-tabs">
-                            <button class="bp-tab-btn active" data-tab-target="pane-mq-l1" data-tab-level="l1">L1 同步落庫</button>
-                            <button class="bp-tab-btn" data-tab-target="pane-mq-l2" data-tab-level="l2">L2 MQ 異步落庫</button>
+                            <button class="bp-tab-btn active" data-tab-target="pane-mq-l1" data-tab-level="l1">P1 同步落庫</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-mq-l2" data-tab-level="l2">P2 MQ 異步落庫</button>
                         </div>
 
                         <div class="bp-pane active" id="pane-mq-l1">
                             <ul class="bp-desc-list">
-                                <li><strong>同步阻塞</strong><span>應用伺服器在扣減庫存成功後，同步執行 `drawRecordRepository.save(...)`。當 DB 壓力上升，主線程將全面卡死。</span></li>
+                                <li><strong>同步阻塞</strong><span>P1 在抽獎完成後同步寫入 draw_record；當 DB insert 與索引更新變慢，整條抽獎請求都會被寫路徑拖住。</span></li>
                             </ul>
                         </div>
 
                         <div class="bp-pane" id="pane-mq-l2">
                             <ul class="bp-desc-list">
-                                <li><strong>異步削峰 (Write-Behind)</strong><span>抽獎完成後立即向 MQ 發送流水落庫事件並返回 Response。流水資料寫入由後台 Kafka Consumer 分批批次寫入 (Batch Insert)。</span></li>
+                                <li><strong>寫路徑削峰</strong><span>抽獎結果先成立並回應，流水落庫改由 MQ / outbox 承接，背景工作者批次寫入，避免抽獎請求等待 DB。</span></li>
                                 <li><strong>回放幂等保證</strong><span>異步落庫期間，使用者重試仍必須由 Redis 中保留的完成狀態 (`idem:done`) 來進行最終幂等攔截。</span></li>
                             </ul>
                         </div>
@@ -787,19 +783,19 @@ return 0</pre>
                     <!-- 3. PostgreSQL Detail -->
                     <div class="detail-card" id="detail-db">
                         <div class="detail-header">
-                            <span class="detail-title">3. PostgreSQL 同步與分表</span>
-                            <span class="detail-badge l1">L1 & L3</span>
+                            <span class="detail-title">3. PostgreSQL 流水與對帳</span>
+                            <span class="detail-badge l1">P1 & P3</span>
                         </div>
-                        <p>資料庫負責儲存流水與活動 Meta 唯讀資料。隨著 QPS 的增長，必須變更儲存架構以降低鎖競爭。</p>
+                        <p>資料庫負責活動設定與抽獎流水。P1 先保留同步落庫；P2 開始把流水寫入移出同步路徑，但仍要保留可回放、可對帳的結果事件。</p>
                         
                         <div class="bp-tabs">
-                            <button class="bp-tab-btn active" data-tab-target="pane-db-l1" data-tab-level="l1">L1 同步單表</button>
-                            <button class="bp-tab-btn" data-tab-target="pane-db-l3" data-tab-level="l3">L3/L4 雜湊分表</button>
+                            <button class="bp-tab-btn active" data-tab-target="pane-db-l1" data-tab-level="l1">P1 同步單表</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-db-l3" data-tab-level="l3">P2 批次寫入</button>
                         </div>
 
                         <div class="bp-pane active" id="pane-db-l1">
                             <ul class="bp-desc-list">
-                                <li><strong>行級樂觀鎖扣點</strong><span>[AccountRepository.java:L18-L21](file:///D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/common/account/AccountRepository.java#L18-L21) 透過 DB 原生的樂觀鎖行級控制 `points = points - :amount where id = :id and points >= :amount` 安全扣除點數。</span></li>
+                                <li><strong>行級樂觀鎖扣點</strong><span>積分扣減靠共享資料庫的原子條件更新，確保餘額不足時不透支；這是共用 account 能力，不在抽獎頁綁定程式碼位置。</span></li>
                                 <li><strong>唯一去重索引</strong><span>抽獎紀錄表依 `idempotency_key` 建立唯一索引以進行最後的資料完整性防線。</span></li>
                             </ul>
                         </div>
@@ -816,25 +812,25 @@ return 0</pre>
                     <div class="detail-card" id="detail-gateway">
                         <div class="detail-header">
                             <span class="detail-title">4. 入口網關限流與 JVM 本地快取</span>
-                            <span class="detail-badge l4">L4 引入</span>
+                            <span class="detail-badge l4">P4 引入</span>
                         </div>
-                        <p>面對數十萬 QPS 的洪水型流量，必須在最上游層層節流（漏斗防禦），避免系統被打穿。</p>
+                        <p>面對大型活動尖峰，P4 的主角是活動獨立 cell：入口配額先擋住洪峰，後端 app / Redis / DB pool 也要與其他活動隔離。</p>
                         
                         <div class="bp-tabs">
-                            <button class="bp-tab-btn active" data-tab-target="pane-gt-l1" data-tab-level="l1">L1 直接穿透</button>
-                            <button class="bp-tab-btn" data-tab-target="pane-gt-l4" data-tab-level="l4">L4 漏斗防禦</button>
+                            <button class="bp-tab-btn active" data-tab-target="pane-gt-l1" data-tab-level="l1">P1 直接穿透</button>
+                            <button class="bp-tab-btn" data-tab-target="pane-gt-l4" data-tab-level="l4">P4 cell 防禦</button>
                         </div>
 
                         <div class="bp-pane active" id="pane-gt-l1">
                             <ul class="bp-desc-list">
-                                <li><strong>直接命中</strong><span>所有請求直接穿透至 Usecase 處理，未開始的活動若遭遇大量腳本刷單，會瞬間打滿 DB 與 Redis 連接池。</span></li>
+                                <li><strong>直接命中</strong><span>P1 所有請求直接進入核心抽獎流程；若活動入口被腳本或重試洪峰打滿，DB、Redis、account 連接池都會一起承壓。</span></li>
                             </ul>
                         </div>
 
                         <div class="bp-pane" id="pane-gt-l4">
                             <ul class="bp-desc-list">
-                                <li><strong>API Gateway 令牌桶</strong><span>在網關層 Kong/Nginx 控制並丟棄超過系統穩態極限的流量，回傳售罄或流量限流回應。</span></li>
-                                <li><strong>JVM 本地快取</strong><span>將活動的唯讀參數快取在伺服器本機的 JVM Heap 內（使用 Caffeine，TTL 5秒），使 checkActivity 的前置檢查免除 Redis/DB 調用，保護核心儲存介質。</span></li>
+                                <li><strong>入口配額與 cell 准入</strong><span>在進入活動 cell 前先控配額；超出容量的請求走排隊、售罄或限流回應，避免進入有狀態路徑後才失控。</span></li>
+                                <li><strong>JVM 本地快取</strong><span>將活動的唯讀參數快取在伺服器本機記憶體內（例如 Caffeine，TTL 5 秒），讓活動前置檢查少打 Redis/DB，保護核心儲存介質。</span></li>
                             </ul>
                         </div>
                     </div>
@@ -842,13 +838,13 @@ return 0</pre>
                     <!-- 5. Account Point Deduct -->
                     <div class="detail-card" id="detail-account">
                         <div class="detail-header">
-                            <span class="detail-title">5. 積分扣除與 Saga 事務補償</span>
-                            <span class="detail-badge cross">跨等級</span>
+                            <span class="detail-title">5. 積分扣除與補償邊界</span>
+                            <span class="detail-badge cross">跨平台</span>
                         </div>
                         <p>抽獎包含扣點與原子發獎，兩者分散在 PostgreSQL 與 Redis 中。此處利用 Saga 補償保持最終一致。</p>
                         <ul class="bp-desc-list">
-                            <li><strong>正向扣點後原子抽獎</strong><span>主鏈路先行調用 [AccountService.java:L22](file:///D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/common/account/AccountService.java#L22) 扣積分。扣點成功後才執行 Redis Lua 原子扣庫存。</span></li>
-                            <li><strong>反向退款補償</strong><span>若 Redis 扣庫存失敗、或記流水出現異常，正向邏輯將在中斷後觸發 [AccountService.java:L29](file:///D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/common/account/AccountService.java#L29) 退還積分 (refund)。整個 Usecase 為無 DB 交易鎖的 Saga 設計。</span></li>
+                            <li><strong>先扣點，再抽獎</strong><span>抽獎流程先扣 200 積分，扣點成功後才碰獎品庫存，避免先送出稀缺獎品卻沒有收到成本。</span></li>
+                            <li><strong>系統失敗才補償</strong><span>若扣點成功後，抽獎品或記錄結果發生系統失敗，才退還積分；LOSE 是正常結果，不做退款。</span></li>
                         </ul>
                     </div>
 
@@ -859,8 +855,8 @@ return 0</pre>
         <!-- RIGHT PANEL: Fixed Interactive Blueprint -->
         <div class="right-pane">
             <div class="right-pane-header">
-                <div class="blueprint-title">INTERACTIVE BLUEPRINT SANDBOX // 系統架構演變藍圖</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">Lottery Scenario</div>
+                <div class="blueprint-title">互動式容量平台藍圖</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: 'Share Tech Mono', monospace;">抽獎情境</div>
             </div>
 
             <div class="svg-wrapper">
@@ -875,121 +871,121 @@ return 0</pre>
 
                     <!-- Nodes -->
 
-                    <!-- Client Node (Always active) -->
+                    <!-- 使用者節點（永遠顯示） -->
                     <g class="bp-node" id="bp-node-client" onclick="scrollToDetail('detail-entry')">
                         <rect x="175" y="15" width="150" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
-                        <text x="250" y="32" text-anchor="middle" class="bp-node-title">Client / 瀏覽器</text>
-                        <text x="250" y="48" text-anchor="middle" class="bp-node-subtitle">Draw Req</text>
+                        <text x="250" y="32" text-anchor="middle" class="bp-node-title">使用者 / 瀏覽器</text>
+                        <text x="250" y="48" text-anchor="middle" class="bp-node-subtitle">抽獎請求</text>
                     </g>
 
-                    <!-- API Gateway (L4) -->
+                    <!-- 入口閘門 (P4) -->
                     <g class="bp-node" id="bp-node-gateway" onclick="scrollToDetail('detail-gateway')">
                         <polygon points="175,70 325,70 340,90 325,110 175,110 160,90" class="bp-node-rect bp-l4 bp-l4-soft" />
-                        <text x="250" y="88" text-anchor="middle" class="bp-node-title">API Gateway</text>
-                        <text x="250" y="102" text-anchor="middle" class="bp-node-subtitle">L4 限流/熔斷閥</text>
+                        <text x="250" y="88" text-anchor="middle" class="bp-node-title">入口閘門</text>
+                        <text x="250" y="102" text-anchor="middle" class="bp-node-subtitle">P4 限流/熔斷閥</text>
                     </g>
 
-                    <!-- App Servers Cluster (L1/L2) -->
+                    <!-- App Servers Cluster (P1/P2) -->
                     <g class="bp-node" id="bp-node-app" onclick="scrollToDetail('detail-entry')">
                         <rect x="175" y="140" width="150" height="50" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
                         <text x="250" y="158" text-anchor="middle" class="bp-node-title">App 伺服器叢集</text>
-                        <text x="250" y="172" text-anchor="middle" class="bp-node-subtitle">[DrawLotteryUsecase]</text>
+                        <text x="250" y="172" text-anchor="middle" class="bp-node-subtitle">同步抽獎核心</text>
                         
-                        <!-- JVM Cache sub-node (L4) -->
+                        <!-- JVM Cache sub-node (P4) -->
                         <rect x="180" y="177" width="140" height="10" rx="2" class="bp-node-badge-rect bp-l4 bp-l4-soft" />
-                        <text x="250" y="185" class="bp-node-badge-text" fill="var(--neon-l4)">L4: JVM Local Cache</text>
+                        <text x="250" y="185" class="bp-node-badge-text" fill="var(--neon-l4)">P4: cell 快取</text>
                     </g>
 
-                    <!-- Redis Subsystem Outer Box (L1/L3) -->
+                    <!-- Redis 子系統 Outer Box (P1/P3) -->
                     <rect x="15" y="215" width="225" height="120" class="bp-group-rect bp-cross" id="bp-box-redis" onclick="scrollToDetail('detail-redis', 'all')" style="cursor:pointer;" />
-                    <text x="25" y="230" class="bp-group-label">Redis Subsystem</text>
+                    <text x="25" y="230" class="bp-group-label">Redis 子系統</text>
 
-                    <!-- Single Redis (L1) -->
+                    <!-- Single Redis (P1) -->
                     <g class="bp-node" id="bp-node-redis-single" onclick="scrollToDetail('detail-redis', 'l1')">
                         <rect x="25" y="245" width="95" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
                         <text x="72" y="262" text-anchor="middle" class="bp-node-title">單點 Redis</text>
-                        <text x="72" y="276" text-anchor="middle" class="bp-node-subtitle">L1 Lua DECR</text>
+                        <text x="72" y="276" text-anchor="middle" class="bp-node-subtitle">P1 Lua DECR</text>
                     </g>
 
-                    <!-- Redis Cluster (L3) -->
+                    <!-- Stock buckets (P3) -->
                     <g class="bp-node" id="bp-node-redis-cluster" onclick="scrollToDetail('detail-redis', 'l3')">
                         <rect x="135" y="245" width="95" height="40" rx="4" class="bp-node-rect bp-l3 bp-l3-soft" />
-                        <text x="182" y="262" text-anchor="middle" class="bp-node-title">Redis Cluster</text>
-                        <text x="182" y="276" text-anchor="middle" class="bp-node-subtitle">L3 Sharded Key</text>
+                        <text x="182" y="262" text-anchor="middle" class="bp-node-title">庫存分桶</text>
+                        <text x="182" y="276" text-anchor="middle" class="bp-node-subtitle">P3 庫存分桶</text>
                     </g>
 
-                    <!-- common.account (L1) -->
+                    <!-- common.account (P1) -->
                     <g class="bp-node" id="bp-node-account" onclick="scrollToDetail('detail-account')">
                         <rect x="350" y="140" width="130" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
                         <text x="415" y="157" text-anchor="middle" class="bp-node-title">積分服務 (DB)</text>
                         <text x="415" y="171" text-anchor="middle" class="bp-node-subtitle">common.account</text>
                     </g>
 
-                    <!-- Message Queue (L2) -->
+                    <!-- Message Queue (P2) -->
                     <g class="bp-node" id="bp-node-mq" onclick="scrollToDetail('detail-mq')">
                         <rect x="350" y="225" width="130" height="40" rx="4" class="bp-node-rect bp-l2 bp-l2-soft" />
                         <text x="415" y="242" text-anchor="middle" class="bp-node-title">MQ 佇列 (Kafka)</text>
-                        <text x="415" y="256" text-anchor="middle" class="bp-node-subtitle">L2: 異步落庫寫入</text>
+                        <text x="415" y="256" text-anchor="middle" class="bp-node-subtitle">P2: 異步落庫寫入</text>
                     </g>
 
-                    <!-- PostgreSQL Subsystem (L1/L3) -->
+                    <!-- PostgreSQL Subsystem (P1/P3) -->
                     <rect x="325" y="295" width="165" height="95" class="bp-group-rect bp-cross" id="bp-box-db" onclick="scrollToDetail('detail-db')" style="cursor:pointer;" />
-                    <text x="335" y="310" class="bp-group-label">PostgreSQL DB</text>
+                    <text x="335" y="310" class="bp-group-label">PostgreSQL 資料庫</text>
 
-                    <!-- DB - draw_record (L1) -->
+                    <!-- DB - draw_record (P1) -->
                     <g class="bp-node" id="bp-node-db-record" onclick="scrollToDetail('detail-db')">
                         <rect x="335" y="325" width="145" height="40" rx="4" class="bp-node-rect bp-l1 bp-l1-soft" />
                         <text x="407" y="342" text-anchor="middle" class="bp-node-title">draw_record</text>
-                        <text x="407" y="356" text-anchor="middle" class="bp-node-subtitle">L1: 同步落庫 | L3: Sharded</text>
+                        <text x="407" y="356" text-anchor="middle" class="bp-node-subtitle">P1: 同步落庫 | P2: 異步落庫</text>
                     </g>
 
-                    <!-- Token Pre-generator (L3) -->
+                    <!-- Token Pre-generator (P3) -->
                     <g class="bp-node" id="bp-node-tokengen" onclick="scrollToDetail('detail-gateway')">
                         <rect x="60" y="355" width="140" height="40" rx="4" class="bp-node-rect bp-l3 bp-l3-soft" />
                         <text x="130" y="372" text-anchor="middle" class="bp-node-title">中獎 Token 預生成</text>
-                        <text x="130" y="386" text-anchor="middle" class="bp-node-subtitle">L3: Pre-heat Worker</text>
+                        <text x="130" y="386" text-anchor="middle" class="bp-node-subtitle">P3: Token 產生器</text>
                     </g>
 
                     <!-- Connector Lines -->
 
-                    <!-- Client to Gateway (L4) -->
+                    <!-- 使用者到入口閘門（P4） -->
                     <path d="M 250 55 L 250 70" class="bp-line level-l4 bp-flow l4" marker-end="url(#arrow-l4)" />
                     
-                    <!-- Gateway to App (L4) -->
+                    <!-- Gateway to App (P4) -->
                     <path d="M 250 110 L 250 140" class="bp-line level-l4 bp-flow l4" marker-end="url(#arrow-l4)" />
 
-                    <!-- Client Direct to App (L1-L3 Flow) -->
+                    <!-- 使用者直接到 App（P1-P3） -->
                     <path d="M 250 55 Q 310 100 250 140" class="bp-line level-l1 bp-flow l1" id="flow-client-app" marker-end="url(#arrow-l1)" />
 
-                    <!-- App to Account (L1) -->
+                    <!-- App to Account (P1) -->
                     <path d="M 325 160 L 350 160" class="bp-line level-l1 bp-flow l1" marker-end="url(#arrow-l1)" />
 
-                    <!-- App to Single Redis (L1) -->
+                    <!-- App to Single Redis (P1) -->
                     <path d="M 200 190 C 130 200 120 220 72 245" class="bp-line level-l1 bp-flow l1" id="flow-app-redis-single" marker-end="url(#arrow-l1)" />
 
-                    <!-- App to Redis Cluster (L3) -->
+                    <!-- App to Stock buckets (P3) -->
                     <path d="M 250 190 Q 210 210 182 245" class="bp-line level-l3 bp-flow l3" marker-end="url(#arrow-l3)" />
 
-                    <!-- App to DB Direct (L1) -->
+                    <!-- App to DB Direct (P1) -->
                     <path d="M 325 175 Q 330 330 335 330" class="bp-line level-l1 bp-flow l1" id="flow-app-db" marker-end="url(#arrow-l1)" />
 
-                    <!-- App to MQ (L2) -->
+                    <!-- App to MQ (P2) -->
                     <path d="M 300 190 C 310 210 320 230 350 235" class="bp-line level-l2 bp-flow l2" marker-end="url(#arrow-l2)" />
 
-                    <!-- MQ to DB (L2) -->
+                    <!-- MQ to DB (P2) -->
                     <path d="M 415 265 L 415 325" class="bp-line level-l2 bp-flow l2" marker-end="url(#arrow-l2)" />
 
-                    <!-- Tokengen to Redis Cluster (L3) -->
+                    <!-- Tokengen to Stock buckets (P3) -->
                     <path d="M 130 355 L 182 285" class="bp-line level-l3 bp-flow l3" marker-end="url(#arrow-l3)" />
                 </svg>
             </div>
 
             <!-- Legends list -->
             <div class="bp-legend-list">
-                <div class="bp-legend-item"><span class="bp-legend-dot l1"></span>L1 元件與基線</div>
-                <div class="bp-legend-item"><span class="bp-legend-dot l2"></span>L2 異步化組件</div>
-                <div class="bp-legend-item"><span class="bp-legend-dot l3"></span>L3 叢集與 Token 預熱</div>
-                <div class="bp-legend-item"><span class="bp-legend-dot l4"></span>L4 防禦網關</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l1"></span>P1 基線正確性</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l2"></span>P2 寫路徑削峰</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l3"></span>P3 分桶與 Token 預熱</div>
+                <div class="bp-legend-item"><span class="bp-legend-dot l4"></span>P4 活動獨立 cell</div>
             </div>
         </div>
 
@@ -997,7 +993,7 @@ return 0</pre>
 
     <footer>
         <p>
-            ConcurrencyLabs 教學演進儀表板 &middot; 檔案結尾：<strong>gemini</strong> &middot; 儲存路徑：D:/WorkSpace/ConcurrencyLabs/src/main/java/com/concurrencylabs/s01_lottery/s01_lottery_gemini.html
+            ConcurrencyLabs 教學演進儀表板 &middot; gemini 版 &middot; 核心敘事以容量平台為主，不綁定程式碼位置
         </p>
     </footer>
 
@@ -1009,7 +1005,7 @@ return 0</pre>
         const bpGroups = document.querySelectorAll('.bp-group-rect');
         const qpsCards = document.querySelectorAll('.qps-card');
 
-        // Setup filter button listeners
+        // 設定平台切換按鈕
         btnToggles.forEach(btn => {
             btn.addEventListener('click', () => {
                 btnToggles.forEach(b => b.classList.remove('active'));
@@ -1020,7 +1016,7 @@ return 0</pre>
             });
         });
 
-        // Setup Block 1 cards click listener
+        // 設定 Block 1 卡片點擊
         qpsCards.forEach(card => {
             card.addEventListener('click', () => {
                 const targetLevel = card.getAttribute('data-target-level');
@@ -1029,7 +1025,7 @@ return 0</pre>
                     matchingBtn.click();
                 }
 
-                // Smooth scroll & click tabs inside detail sections
+                // 捲動到對應 detail 並切換頁籤
                 const detailMapping = {
                     'l1': 'detail-redis',
                     'l2': 'detail-mq',
@@ -1040,9 +1036,9 @@ return 0</pre>
             });
         });
 
-        // Filter and highlight nodes in blueprint diagram
+        // 篩選並高亮藍圖節點
         function applyBlueprintFilter(level) {
-            // Remove dimmed and flow styling
+            // 清除淡化與流向樣式
             bpNodes.forEach(node => {
                 node.classList.remove('dimmed');
                 const rect = node.querySelector('.bp-node-rect');
@@ -1061,58 +1057,58 @@ return 0</pre>
                 return;
             }
 
-            // Dim inactive nodes
+            // 淡化未啟用節點
             bpNodes.forEach(node => {
                 const rect = node.querySelector('.bp-node-rect');
                 if (!rect) return;
 
-                const hasL1 = rect.classList.contains('bp-l1');
-                const hasL2 = rect.classList.contains('bp-l2');
-                const hasL3 = rect.classList.contains('bp-l3');
-                const hasL4 = rect.classList.contains('bp-l4');
+                const hasP1 = rect.classList.contains('bp-l1');
+                const hasP2 = rect.classList.contains('bp-l2');
+                const hasP3 = rect.classList.contains('bp-l3');
+                const hasP4 = rect.classList.contains('bp-l4');
 
                 let active = false;
                 if (level === 'l1' && rect.classList.contains('bp-l1')) active = true;
                 if (level === 'l2' && (rect.classList.contains('bp-l1') || rect.classList.contains('bp-l2'))) active = true;
                 if (level === 'l3' && (rect.classList.contains('bp-l1') || rect.classList.contains('bp-l2') || rect.classList.contains('bp-l3'))) active = true;
-                if (level === 'l4') active = true; // All nodes are active in full L4
+                if (level === 'l4') active = true; // All nodes are active in full P4
 
                 if (!active) {
                     node.classList.add('dimmed');
                 }
             });
 
-            // Dim / Highlight connection lines
+            // 淡化或高亮連線
             bpLines.forEach(line => {
-                const hasL1 = line.classList.contains('level-l1');
-                const hasL2 = line.classList.contains('level-l2');
-                const hasL3 = line.classList.contains('level-l3');
-                const hasL4 = line.classList.contains('level-l4');
+                const hasP1 = line.classList.contains('level-l1');
+                const hasP2 = line.classList.contains('level-l2');
+                const hasP3 = line.classList.contains('level-l3');
+                const hasP4 = line.classList.contains('level-l4');
 
                 let lineLit = false;
-                if (level === 'l1' && hasL1) lineLit = true;
-                if (level === 'l2' && (hasL1 || hasL2)) lineLit = true;
-                if (level === 'l3' && (hasL1 || hasL2 || hasL3)) lineLit = true;
+                if (level === 'l1' && hasP1) lineLit = true;
+                if (level === 'l2' && (hasP1 || hasP2)) lineLit = true;
+                if (level === 'l3' && (hasP1 || hasP2 || hasP3)) lineLit = true;
                 if (level === 'l4') lineLit = true;
 
                 if (!lineLit) {
                     line.classList.add('dimmed');
                 } else {
-                    if (hasL1) line.classList.add('bp-flow', 'l1');
-                    if (hasL2) line.classList.add('bp-flow', 'l2');
-                    if (hasL3) line.classList.add('bp-flow', 'l3');
-                    if (hasL4) line.classList.add('bp-flow', 'l4');
+                    if (hasP1) line.classList.add('bp-flow', 'l1');
+                    if (hasP2) line.classList.add('bp-flow', 'l2');
+                    if (hasP3) line.classList.add('bp-flow', 'l3');
+                    if (hasP4) line.classList.add('bp-flow', 'l4');
                 }
             });
 
-            // Dim boxes if they don't apply to the QPS level
+            // 淡化不屬於目前平台的外框
             const redisGroup = document.getElementById('bp-box-redis');
             const dbGroup = document.getElementById('bp-box-db');
             if (level === 'l1' && redisGroup) {
-                // L1 only has single Redis, cluster is dimmed, so keep group active but single focused
+                // P1 只有單點 Redis；叢集節點淡化，外框保持啟用
             }
             
-            // Bypassed flows in higher levels
+            // 高平台會繞過的流向
             const directClientApp = document.getElementById('flow-client-app');
             if (level === 'l4' && directClientApp) {
                 directClientApp.classList.add('dimmed');
@@ -1121,22 +1117,22 @@ return 0</pre>
 
         function enableAllBlueprintFlows() {
             bpLines.forEach(line => {
-                const hasL1 = line.classList.contains('level-l1');
-                const hasL2 = line.classList.contains('level-l2');
-                const hasL3 = line.classList.contains('level-l3');
-                const hasL4 = line.classList.contains('level-l4');
+                const hasP1 = line.classList.contains('level-l1');
+                const hasP2 = line.classList.contains('level-l2');
+                const hasP3 = line.classList.contains('level-l3');
+                const hasP4 = line.classList.contains('level-l4');
                 
-                if (hasL1) line.classList.add('bp-flow', 'l1');
-                if (hasL2) line.classList.add('bp-flow', 'l2');
-                if (hasL3) line.classList.add('bp-flow', 'l3');
-                if (hasL4) line.classList.add('bp-flow', 'l4');
+                if (hasP1) line.classList.add('bp-flow', 'l1');
+                if (hasP2) line.classList.add('bp-flow', 'l2');
+                if (hasP3) line.classList.add('bp-flow', 'l3');
+                if (hasP4) line.classList.add('bp-flow', 'l4');
             });
         }
 
-        // Initialize flows
+        // 初始化流向
         enableAllBlueprintFlows();
 
-        // Scroll left pane to detail block and switch tab
+        // 捲動到左側 detail 並切換頁籤
         function scrollToDetail(id, level) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -1156,7 +1152,7 @@ return 0</pre>
             }
         }
 
-        // Tab triggers inside detail cards
+        // detail 卡片內的頁籤觸發
         const tabBtns = document.querySelectorAll('.bp-tab-btn');
         tabBtns.forEach(btn => {
             btn.addEventListener('click', () => {

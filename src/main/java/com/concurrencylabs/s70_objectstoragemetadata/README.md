@@ -47,3 +47,31 @@
 - **隱藏地雷** → list 大 bucket 是重操作。
 - **要不要分片？** 大 bucket index 要拆分。
 - **真正的痛**：單檔查詢很輕，但「list 上億筆的大 bucket」這種重操作若不限流 / 分片，會把整個 metadata 服務拖垮。
+
+---
+
+## 容量平台演進地圖（P1 → P3）
+
+> 起點固定假設 QPS 3,000+。每跳一個平台 = 一次架構改造（一組必須一起改的大方塊）。
+> s70 讀爆、list 大 bucket 重操作要限流分片,放寬 → 共 3 個平台。
+
+```text
+【P1 · 基線】約 3,000 QPS
+├─ 定義：單檔 metadata 查詢 + list
+├─ 大方塊：metadata 查詢 · list
+└─ 撐不住的訊號 → list 上億筆大 bucket 重操作拖垮服務
+
+【P2 · list 限流分頁 + 大 bucket index 分片】約 10,000 QPS
+├─ 定義：單檔查快取,list 一律分頁+限流,大 bucket index 分片
+├─ 大方塊（綁一起）
+│   ├─ 單檔查詢快取(輕高頻)
+│   ├─ list 分頁(游標)+限流(防拖垮)
+│   └─ 大 bucket index 分片
+├─ 為何綁：list 重操作不拖垮 = 分頁 + 限流 + index 分片,一起做
+└─ 撐不住的訊號 → 檔數再放大、按 bucket/tenant 熱點
+
+【P3 · metadata 分片 + 多層快取 + 租戶隔離】約 50,000+ QPS
+├─ 定義：metadata 按 bucket/tenant 分片,查詢多層快取,租戶隔離
+├─ 大方塊：metadata 分片 · 多層快取 · 租戶隔離
+└─ 為何綁：規模化 metadata = 分片 + 快取 + 租戶隔離,一起做
+```
